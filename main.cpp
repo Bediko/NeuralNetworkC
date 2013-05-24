@@ -11,6 +11,8 @@ int main(int argc, char *argv[]){
 	double learnrate, decayrate;
 	int nVars,nEpochs,nEvents,NumberOfLayers,i,j;
 	int* NeuronsPerLayer;
+	double*** Synweights;
+	double** Neurons;
 	CEvents* training=(CEvents*)malloc(sizeof(CEvents));;
 	CEvents* testing=(CEvents*)malloc(sizeof(CEvents));;
 	if (argc <=1){
@@ -70,5 +72,13 @@ int main(int argc, char *argv[]){
 	for(j=0;j<nVars;j++){
 			cout<<testing->eventValues[nEvents-1][j]<<endl;
 		}
+
+	Neurons=(double**)malloc(NumberOfLayers*sizeof(double*));
+	for(i=0;i<NumberOfLayers;i++){
+		Neurons[i]=(double*)malloc(NeuronsPerLayer[i]*sizeof(double));
+	}
+
+	Synweights=CTrainMLP(training, learnrate, int nVars, int nEpochs, 
+		int nEvents,Synweights,Neurons,NeuronsPerLayer,NumberOfLayers,decayrate,1, 0)
 	return 0;
 }
