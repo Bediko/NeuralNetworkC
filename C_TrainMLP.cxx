@@ -146,68 +146,39 @@ double*** CTrainMLP(CEvents* ev, double learnRate, int nVars, int nEpochs,
 	}*/
 	return Synweights;
 }
-/*
-#include "TMVA/C_TrainMLP.h"
-#include <math.h>
-#include <iostream>
-#include <fstream>
-#include <stdlib.h>
 
-double*** CTrainMLP(CEvents* ev, float learnRate, int nVars, int nEpochs, 
-		int nEvents, double*** Synweights, double** Neurons,int* NeuronsPerLayer, int NumberOfLayers, double decayRate){
-std::ofstream out;
-out.open("Output");
-	double Output;
-	double desired;
-	double Eventvalue;
-	double* y_2;
-	//nVars=nVars+1; //Übergeben Variablenzahl berücksicht nicht den Biasknoten, daher +1
-	y_2=(double*)malloc(NeuronsPerLayer[1]*sizeof(double));
-	y_2[NeuronsPerLayer[1]-1]=1; //Setze Output für Biasknoten auf Hiddenlayer auf 1
-
-	for(int i=0;i<nVars;i++){
-		std::cout<<ev->eventValues[0][i]<<std::endl;
+double** CTrainMLP_testing(CEvents* ev, int nEpochs, 
+		int nEvents, double*** Synweights, double** Neurons,int* NeuronsPerLayer, int NumberOfLayers,double** testout){
+	
+	int* bias=(int*)malloc(NumberOfLayers*sizeof(int));
+	int l,i,j,k;																															//indices in for loops
+	bias[NumberOfLayers-1]=0;
+	for(i=0;i<NumberOfLayers-1;i++){ 																						//for each Layer except the Output Layer
+		Neurons[i][NeuronsPerLayer[i]-1]=1.0;
+		bias[i]=1; 																			//Set Bias Node to 1
 	}
-
-
-	for(int nEp=0;nEp<nEpochs;nEp++){
-		for(int nEv=0;nEv<nEvents;nEv++){
-			if (ev->eventClass[nEv]==0){ //Muss Output 1 oder 0 sein?
-					desired=1.0;
-				}
-				else {
-					desired=0.0;
-				}
-			//forward	
-			Output=0.0;																	//Output und Zwischenwerte für jedes Event auf 0 setzen vor der Berechnung
-			for(int j=0;j<NeuronsPerLayer[1]-1;j++){
-				y_2[j]=0.0;
-			}
-			for(int j=0;j<NeuronsPerLayer[1]-1;j++){   //berechne o*w für Inputlayer j-1 da Biasknoten in HL keinen Input hat
-				for(int i=0;i<NeuronsPerLayer[0];i++){	 // für alle Knoten auf Inputlayer				
-					y_2[j]+=ev->eventValues[nEv][i]*Synweights[0][i][j];
-				}
-				y_2[j]=tanh(y_2[j]);
+	for(int nEp=0;nEp<nEpochs;nEp++){																						//for each epoch
+		for(int nEv=0;nEv<nEvents;nEv++){																					//for each event
+			
+			// aus eventValue bias-Knoten wieder raus und for-loop nur bis < NeuronsPerLayer[0]-1
+			for(i=0;i<NeuronsPerLayer[0]-1;i++){ 																			//Use Eventvalues as output of the input layer to make the next step easier.
+				Neurons[0][i]=ev->eventValues[nEv][i];
 			}
 			
-			for(int j=0;j<NeuronsPerLayer[1];j++){ //berechne o*w für Output 
-				Output+=y_2[j]*Synweights[1][j][0];
-			} 
+			//forward propagation	
 			
-			//backward
-			for(int j=0;j<NeuronsPerLayer[1];j++){ //Gewichte zwischen Output und Hiddenlayer	
-				Synweights[1][j][0]+=-learnRate*(Output-desired)*y_2[j];
-			}
-
-			
-			for(int j=0;j<NeuronsPerLayer[1]-1;j++){ //Gewichte zwischen Hidden und Inputlayer
-				for(int i=0;i<NeuronsPerLayer[0];i++){
-						Eventvalue=ev->eventValues[nEv][i];
-						Synweights[0][i][j]+=-learnRate*(Output-desired)*(1-pow(y_2[j],2))*Synweights[1][j][0]*Eventvalue;
+			for(l=1;l<NumberOfLayers;l++){ 																				//For each layer except Input and Output Layer. 
+				for(j=0;j<NeuronsPerLayer[l]-bias[l];j++){ 														//For each neuron on the next layer except bias node
+					Neurons[l][j]=0.0;																									//clear old output
+					for(i=0;i<NeuronsPerLayer[l-1];i++){ 																//For each input coming from the lower layer
+						Neurons[l][j]+=Neurons[l-1][i]*Synweights[l-1][i][j];							//Calculate the neuron input
+					}
+					if(l==NumberOfLayers-1)																							//decide if current layer is Output
+						continue;										
+					else																															
+						Neurons[l][j]=FUNCTION(Neurons[l][j]);																//Calculate the output as f_act(Input)
 				}
 			}
 		}
 	}
-	out.close();
-	return Synweights;
-}*/
+}

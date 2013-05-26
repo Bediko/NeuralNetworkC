@@ -14,6 +14,7 @@ int main(int argc, char *argv[]){
 	double*** Synweights;
 	double** Neurons;
 	int* bias;
+	double** testoutput;
 	CEvents* training=(CEvents*)malloc(sizeof(CEvents));;
 	CEvents* testing=(CEvents*)malloc(sizeof(CEvents));;
 	if (argc <=1){
@@ -98,5 +99,10 @@ int main(int argc, char *argv[]){
 
 	Synweights=CTrainMLP(training, learnrate,nVars,nEpochs, 
 		nEvents,Synweights,Neurons,NeuronsPerLayer,NumberOfLayers,decayrate,1.0,0.0);
+	testoutput=(double**)malloc(nEvents*sizeof(double*));
+	for(i=0;i<nEvents;i++){
+		testoutput[i]=(double*)malloc(NeuronsPerLayer[NumberOfLayers-1]*sizeof(double));
+	}
+	testoutput=CTrainMLP_testing(testing,nEpochs,nEvents,Synweights,Neurons,NeuronsPerLayer,NumberOfLayers,testoutput);
 	return 0;
 }
