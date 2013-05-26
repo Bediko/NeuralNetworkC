@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-I.
+CFLAGS=-g -I.
 DEPS = C_TrainMLP.h
 OBJ = main.o C_TrainMLP.o 
 LFLAGS=
@@ -8,3 +8,7 @@ LFLAGS=
 
 main: $(OBJ)
 	g++ -o $@ $^ $(CFLAGS)
+
+clean:
+	rm -f *.o
+	rm -f main
