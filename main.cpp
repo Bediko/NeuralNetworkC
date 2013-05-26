@@ -9,7 +9,7 @@ using namespace std;
 int main(int argc, char *argv[]){
 	ifstream loaddata,loadtest;
 	double learnrate, decayrate;
-	int nVars,nEpochs,nEvents,NumberOfLayers,i,j;
+	int nVars,nEpochs,nEvents,NumberOfLayers,i,j,l;
 	int* NeuronsPerLayer;
 	double*** Synweights;
 	double** Neurons;
@@ -68,22 +68,33 @@ int main(int argc, char *argv[]){
 			loadtest>>testing->eventValues[i][j];
 		}
 	}
-	cout<<testing->eventClass[nEvents-1]<<endl;
-	cout<<testing->eventWeights[nEvents-1]<<endl;
-	for(j=0;j<nVars;j++){
-			cout<<testing->eventValues[nEvents-1][j]<<endl;
-		}
-
+	loaddata.close();
+	loadtest.close();
 	Neurons=(double**)malloc(NumberOfLayers*sizeof(double*));
 	for(i=0;i<NumberOfLayers;i++){
 		Neurons[i]=(double*)malloc(NeuronsPerLayer[i]*sizeof(double));
 	}
 
-	bias=(int*)malloc(NumberOfLayers*sizeof(int));
+	bias=(int*)calloc(NumberOfLayers,sizeof(int));
 	for(i=0;i<NumberOfLayers-1;i++){
 		bias[i]=1;
 	}
-	bias[NumberOfLayers]=0;
+
+	filename=folder+"/synapses.txt";
+	loaddata.open(filename.c_str());
+	if(!loaddata.is_open()){
+		cout<<folder+"/synapses.txt kann nicht gefunden werden"<<endl;
+	}
+	Synweights=(double***)malloc((NumberOfLayers-1)*sizeof(double**));
+	for(l=0;l<NumberOfLayers-1;l++){
+		Synweights[l]=(double**)malloc(NeuronsPerLayer[l]*sizeof(double*));
+		for(i=0;i<NeuronsPerLayer[l];i++){
+			Synweights[l][i]=(double*)malloc((NeuronsPerLayer[l+1]-bias[l+1])*sizeof(double));
+			for(j=0;j<NeuronsPerLayer[l+1]-bias[l+1];j++){
+				loaddata>>Synweights[l][i][j];
+			}
+		}
+	}
 
 	Synweights=CTrainMLP(training, learnrate,nVars,nEpochs, 
 		nEvents,Synweights,Neurons,NeuronsPerLayer,NumberOfLayers,decayrate,1.0,0.0);
