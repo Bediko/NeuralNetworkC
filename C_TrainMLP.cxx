@@ -179,6 +179,10 @@ double** CTrainMLP_testing(CEvents* ev, int nEpochs,
 						Neurons[l][j]=FUNCTION(Neurons[l][j]);																//Calculate the output as f_act(Input)
 				}
 			}
-		}
+			for(i=0;i<NeuronsPerLayer[NumberOfLayers-1];i++){
+				testout[nEv][i]=Neurons[NumberOfLayers-1][i];
+			}
+		}		
 	}
+	return testout;
 }

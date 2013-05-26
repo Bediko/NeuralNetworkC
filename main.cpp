@@ -20,7 +20,7 @@ int main(int argc, char *argv[]){
 	if (argc <=1){
 		cout<<"Kein Ordner angegeben"<<endl;
 	}
-
+	cout<<"Loading data"<<endl;
 	string folder=argv[1];
 	string filename=folder+"/numbers.txt";
 	loaddata.open(filename.c_str());
@@ -96,13 +96,17 @@ int main(int argc, char *argv[]){
 			}
 		}
 	}
-
+	cout<<"Train network"<<endl;
 	Synweights=CTrainMLP(training, learnrate,nVars,nEpochs, 
 		nEvents,Synweights,Neurons,NeuronsPerLayer,NumberOfLayers,decayrate,1.0,0.0);
 	testoutput=(double**)malloc(nEvents*sizeof(double*));
 	for(i=0;i<nEvents;i++){
 		testoutput[i]=(double*)malloc(NeuronsPerLayer[NumberOfLayers-1]*sizeof(double));
 	}
+	cout<<"Test network"<<endl;
 	testoutput=CTrainMLP_testing(testing,nEpochs,nEvents,Synweights,Neurons,NeuronsPerLayer,NumberOfLayers,testoutput);
+	cout<<"Save test data"<<endl;
+	//TODO
+	//Daten speichern wie in Mail erklärt
 	return 0;
 }
