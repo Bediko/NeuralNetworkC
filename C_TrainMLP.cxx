@@ -157,7 +157,6 @@ double** CTrainMLP_testing(CEvents* ev, int nEpochs,
 		Neurons[i][NeuronsPerLayer[i]-1]=1.0;
 		bias[i]=1; 																			//Set Bias Node to 1
 	}
-	for(int nEp=0;nEp<nEpochs;nEp++){																						//for each epoch
 		for(int nEv=0;nEv<nEvents;nEv++){																					//for each event
 			
 			// aus eventValue bias-Knoten wieder raus und for-loop nur bis < NeuronsPerLayer[0]-1
@@ -183,6 +182,5 @@ double** CTrainMLP_testing(CEvents* ev, int nEpochs,
 				testout[nEv][i]=Neurons[NumberOfLayers-1][i];
 			}
 		}		
-	}
 	return testout;
 }

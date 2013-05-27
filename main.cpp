@@ -3,18 +3,26 @@
 #include <iostream>
 #include <string>
 #include <stdlib.h>
+#include <math.h>
 
 using namespace std;
 
+
+
 int main(int argc, char *argv[]){
 	ifstream loaddata,loadtest;
+	ofstream savedata;
 	double learnrate, decayrate;
 	int nVars,nEpochs,nEvents,NumberOfLayers,i,j,l;
 	int* NeuronsPerLayer;
 	double*** Synweights;
 	double** Neurons;
 	int* bias;
+	double** mean;
+	double** varianz;
 	double** testoutput;
+	int* classevents;
+	int nclasses;
 	CEvents* training=(CEvents*)malloc(sizeof(CEvents));;
 	CEvents* testing=(CEvents*)malloc(sizeof(CEvents));;
 	if (argc <=1){
@@ -105,8 +113,67 @@ int main(int argc, char *argv[]){
 	}
 	cout<<"Test network"<<endl;
 	testoutput=CTrainMLP_testing(testing,nEpochs,nEvents,Synweights,Neurons,NeuronsPerLayer,NumberOfLayers,testoutput);
-	cout<<"Save test data"<<endl;
-	//TODO
-	//Daten speichern wie in Mail erklärt
+	filename=folder+"/Outputvalues.txt";
+	cout<<"Write Outputvalues in "<<filename<<endl;
+	savedata.open(filename.c_str());
+	for(i=0;i<nEvents;i++){
+		for(j=0;j<NeuronsPerLayer[NumberOfLayers-1];j++){
+			savedata<<testoutput[i][j]<<" ";
+		}
+		savedata<<endl;
+	}
+
+	if(NeuronsPerLayer[NumberOfLayers-1]==1){
+		classevents=(int*)calloc(2,sizeof(int));
+		nclasses=2;
+		mean=(double**)calloc(2,sizeof(double*));
+		mean[0]=(double*)calloc(1,sizeof(double));
+		mean[1]=(double*)calloc(1,sizeof(double));
+		varianz=(double**)calloc(2,sizeof(double*));
+		varianz[0]=(double*)calloc(1,sizeof(double));
+		varianz[1]=(double*)calloc(1,sizeof(double));
+	}
+	else{
+		nclasses=NeuronsPerLayer[NumberOfLayers-1];
+		classevents=(int*)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(int));
+		mean=(double**)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(double*));
+		for(i=0;i<NeuronsPerLayer[NumberOfLayers-1];i++){
+			mean[i]=(double*)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(double));
+		}
+		varianz=(double**)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(double*));
+		for(i=0;i<NeuronsPerLayer[NumberOfLayers-1];i++){
+			varianz[i]=(double*)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(double));
+		}
+	}
+
+	for(i=0;i<nEvents;i++){
+		classevents[testing->eventClass[i]]+=1;
+		for(j=0;j<NeuronsPerLayer[NumberOfLayers-1];j++){
+			mean[testing->eventClass[i]][j]+=testoutput[i][j];
+		}
+	}
+	cout<<"Mittelwert"<<endl;
+	for(i=0;i<nclasses;i++){
+		cout<<"Event"<<i;
+		for(j=0;j<NeuronsPerLayer[NumberOfLayers-1];j++){
+			mean[i][j]=mean[i][j]/classevents[i];
+			cout<<"\t"<<fixed<<mean[i][j];
+		}
+		cout<<endl;
+	}
+	cout<<"Varianz"<<endl;
+	for(i=0;i<nEvents;i++){
+		for(j=0;j<NeuronsPerLayer[NumberOfLayers-1];j++){
+			varianz[testing->eventClass[i]][j]+=pow(testoutput[i][j]-mean[testing->eventClass[i]][j],2);
+		}
+	}
+	for(i=0;i<nclasses;i++){
+		cout<<"Event"<<i;
+		for(j=0;j<NeuronsPerLayer[NumberOfLayers-1];j++){
+			varianz[i][j]=varianz[i][j]/classevents[i];
+			cout<<"\t"<<fixed<<varianz[i][j];
+		}
+		cout<<endl;
+	}
 	return 0;
 }
