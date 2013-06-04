@@ -123,7 +123,7 @@ int main(int argc, char *argv[]){
 	savedata.open(filename.c_str());
 	for(i=0;i<nEvents;i++){
 		for(j=0;j<NeuronsPerLayer[NumberOfLayers-1];j++){
-			savedata<<testoutput[i][j]<<" ";
+			savedata<<setprecision(8)<<scientific<<testoutput[i][j]<<" ";
 		}
 		savedata<<endl;
 	}
