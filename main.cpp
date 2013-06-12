@@ -43,9 +43,9 @@ int main(int argc, char *argv[]){
   int*** bins;
   double binsize=0.05;
   double*** histdata;
-  CEvents* training=(CEvents*)malloc(sizeof(CEvents));;
-  CEvents* testing=(CEvents*)malloc(sizeof(CEvents));;
-
+  CEvents* training = (CEvents*)malloc(sizeof(CEvents));;
+  CEvents* testing  = (CEvents*)malloc(sizeof(CEvents));;
+  int type,events;
   double start_t, stop_t, duration;
 
   if (argc <=1){
@@ -65,7 +65,9 @@ int main(int argc, char *argv[]){
   loaddata>>nVars;
   cout << "number of variables: " << nVars << endl;
   loaddata>>nEpochs;
+  cout << "number of learning epochs: " << nEpochs << endl;
   loaddata>>nEvents; 
+  cout << "number of events: " << nEvents << endl;
   loaddata>>NumberOfLayers;
   NeuronsPerLayer=(int*)malloc(NumberOfLayers*sizeof(int));
   for(i=0;i<NumberOfLayers;i++){    
@@ -73,10 +75,17 @@ int main(int argc, char *argv[]){
     cout << "number of nodes on layer " << i << " is " << NeuronsPerLayer[i] << endl;
   }
   loaddata>>decayrate;
-    cout << "decay rate of the learning rate: " << decayrate << endl;  
+  cout << "decay rate of the learning rate: " << decayrate << endl;  
+  loaddata>>type;
+  cout << "learning type: " << type << endl;  
+  if (type == 3) {
+    loaddata>>events;
+    cout << "learning in batches of " << events << " events" << endl;
+  }
   loaddata.close();
   
-  // read trainig and testing data from argv[1]+"/training.txt and argv[1]+"/testing.txt"
+  // read trainig and testing data from argv[1]+"/training.txt 
+  // and argv[1]+"/testing.txt"
   filename=folder+"/training.txt";
   loaddata.open(filename.c_str());
   if(!loaddata.is_open()){
@@ -88,23 +97,22 @@ int main(int argc, char *argv[]){
     cout<<folder+"/testing.txt kann nicht gefunden werden"<<endl;
   }
   
-  training->eventClass=(int*)malloc(nEvents*sizeof(int));
-  training->eventWeights=(double*)malloc(nEvents*sizeof(double));
-  training->eventValues=(double**)malloc(nEvents*sizeof(double*));
-  
-  testing->eventClass=(int*)malloc(nEvents*sizeof(int));
-  testing->eventWeights=(double*)malloc(nEvents*sizeof(double));
+  training->eventClass  =  (int*)  malloc(nEvents*sizeof(int));
+  training->eventWeights=(double*) malloc(nEvents*sizeof(double));
+  training->eventValues =(double**)malloc(nEvents*sizeof(double*));
 
-  training->eventValues=(double**)malloc(nEvents*sizeof(double*));
-  testing->eventValues=(double**)malloc(nEvents*sizeof(double*));
+  testing->eventClass   =  (int*)  malloc(nEvents*sizeof(int));
+  testing->eventWeights =(double*) malloc(nEvents*sizeof(double));
+  testing->eventValues  =(double**)malloc(nEvents*sizeof(double*));
+
   training->eventValues[0]=(double*)malloc(nEvents*nVars*sizeof(double));
-  testing->eventValues[0]=(double*)malloc(nEvents*nVars*sizeof(double));
-  for(i=1;i<nEvents;i++){
+  testing->eventValues[0] =(double*)malloc(nEvents*nVars*sizeof(double));
+  for (i=1; i<nEvents; i++) {
     training->eventValues[i]=training->eventValues[0]+i*nVars;
-    testing->eventValues[i]=testing->eventValues[0]+i*nVars;
-    }
+    testing->eventValues[i] =testing->eventValues[0]+i*nVars;
+  }
 
-  for(i=0;i<nEvents;i++){
+  for (i=0; i<nEvents; i++) {
     loaddata>>training->eventClass[i];
     loadtest>>testing->eventClass[i];
     loaddata>>training->eventWeights[i];
@@ -155,31 +163,39 @@ int main(int argc, char *argv[]){
   }
   // all data read
 
-  // set the desired output values
-  int tmp=NeuronsPerLayer[NumberOfLayers-1];
-  training->desired=(double**)malloc(nEvents*sizeof(double*));
-  testing->desired=(double**)malloc(nEvents*sizeof(double*));
-  training->desired[0]=(double*)calloc(nEvents*tmp,sizeof(double));
-  testing->desired[0]=(double*)calloc(nEvents*tmp,sizeof(double));
-  for(i=1;i<nEvents;i++){
-    training->desired[i]=training->desired[0]+i*tmp;
-    testing->desired[i]=testing->desired[0]+i*tmp;
-  }
-  for(i=0;i<nEvents;i++){
-    training->desired[i][training->eventClass[i]] = 1.0;
-    testing->desired[i][testing->eventClass[i]] = 1.0;
-  }
 
 
   // now train network,CTrainMLP for online and CTrainMLP_b for batch learning
   cout<<"Train network"<<endl;
 
   start_t = second();
-  Synweights=CTrainMLP(training, learnrate, nVars, nEpochs, 
-		       nEvents, Synweights, Neurons, NeuronsPerLayer, 
-		       NumberOfLayers, bias, decayrate, 1.0, 0.0);
-  duration = second()- start_t;
+  if (type == 1) {
+    cout << "online learning " << endl;
+    CTrainMLP(training, learnrate, nVars, nEpochs, 
+	      nEvents, Synweights, NeuronsPerLayer, 
+	      NumberOfLayers, bias, decayrate, 1.0, 0.0);
+  }
+  if (type == 2) {
+    cout << "batch learning" << endl;
+    CTrainMLP_b(training, learnrate, nVars, nEpochs, 
+		nEvents, Synweights, NeuronsPerLayer, 
+		NumberOfLayers, bias, decayrate);
+  }
+  if (type == 3) {
+    if (nEvents%events != 0) {
+      cout << events << " events is not a factor of " << nEvents 
+	   << ". Choose different value" << endl;
+    }
+    cout << "learning " << nEvents << " events in batches of " << events 
+	 << " events" << endl;
+    CTrainMLP_m(training, learnrate, nVars, nEpochs, 
+		nEvents, Synweights, NeuronsPerLayer, 
+		NumberOfLayers, bias, decayrate, events);
+  }
 
+
+  duration = second()- start_t;
+  
   // test network
   testoutput=(double**)malloc(nEvents*sizeof(double*));
   for(i=0;i<nEvents;i++){
@@ -196,11 +212,29 @@ int main(int argc, char *argv[]){
   cout << "time for learning: " << duration << endl;
   cout << "time for testing:  " << stop_t - start_t << endl;
 
-
-
-  filename=folder+"/Outputvalues.txt";
-  cout<<"Write Outputvalues in "<<filename<<endl;
+  // write results of final synapses
+  filename=folder+"/synapses_out.txt";
   savedata.open(filename.c_str());
+  if(!savedata.is_open()){
+    cout<<folder+"/synapses_out.txt kann nicht gefunden werden"<<endl;
+  }
+  savedata<<setprecision(8)<<scientific;
+  for(l=0;l<NumberOfLayers-1;l++){
+    for(i=0;i<NeuronsPerLayer[l];i++){
+      for(j=0;j<NeuronsPerLayer[l+1]-bias[l+1];j++){
+	savedata<<Synweights[l][i][j]<<endl;
+      }
+    }
+  }
+  savedata.close();
+  
+  // write results of the output layer
+  filename=folder+"/Outputvalues.txt";
+  savedata.open(filename.c_str());
+  if(!savedata.is_open())
+    cout<<folder+"/Outputvalues.txt kann nicht gefunden werden"<<endl;
+  else
+    cout<<"Write Outputvalues in "<<filename<<endl;
   for(i=0;i<nEvents;i++){
     for(j=0;j<NeuronsPerLayer[NumberOfLayers-1];j++){
       savedata<<setprecision(8)<<scientific<<testoutput[i][j]<<endl;;
@@ -281,43 +315,45 @@ int main(int argc, char *argv[]){
     classevents[m]++;
   }
 
-  
-  double* max=(double*)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(double));
-  double* min=(double*)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(double));
+  // historgramme NEU !!!
+  int lastLayer   = NumberOfLayers-1;
+  int lastNeurons = NeuronsPerLayer[lastLayer];
+ 
+  double* max=(double*)calloc(lastNeurons,sizeof(double));
+  double* min=(double*)calloc(lastNeurons,sizeof(double));
   int nBins=0;
   double minhisto=1;
-  for(int i=0;i<NeuronsPerLayer[NumberOfLayers-1];i++){
-    min[i]=1;
+  for (int i=0; i < lastNeurons; i++){
+    min[i]=1.0;
+    max[i]=0.0;
   }
-  for(i=0;i<nclasses;i++){
-    for(j=0;j<classevents[i];j++){
-      for(int k=0;k<NeuronsPerLayer[NumberOfLayers-1];k++){
-      	if(histdata[i][j][k]<min[k])
-      	  min[k]=histdata[i][j][k];
-      	if(histdata[i][j][k]>max[k])
-      	  max[k]=histdata[i][j][k];
+  for (i=0; i<nclasses; i++) {
+    for (j=0; j<classevents[i]; j++) {
+      for (int k=0; k<lastNeurons; k++) {
+      	if (histdata[i][j][k] < min[k])
+      	  min[k] = histdata[i][j][k];
+      	if (histdata[i][j][k] > max[k])
+      	  max[k] = histdata[i][j][k];
       }
 
     }
-    for(int k=0;k<NeuronsPerLayer[NumberOfLayers-1];k++){
-      if(nBins<int(((-min[k]+0.025)/0.05)+1+((max[k]+0,025)/0.05)))
-        nBins=int(((-min[k]+0.025)/0.05)+1+((max[k]+0,025)/0.05));
+    for (int k=0; k<lastNeurons; k++){
+      if(nBins<int(((-min[k]+0.025)/0.05)+1+((max[k]+0.025)/0.05)))
+        nBins=int(((-min[k]+0.025)/0.05)+1+((max[k]+0.025)/0.05));
       if(minhisto>((min[k]-0.025)/0.05)*0.05-0.025)
         minhisto=((min[k]-0.025)/0.05)*0.05-0.025;
     }
-    if(nBins>=40)
-      nBins=40;
   }
   bins=(int***)calloc(nclasses,sizeof(int**));
   for(i=0;i<nclasses;i++){
-    bins[i]=(int**)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(int*));
-    for(j=0;j<NeuronsPerLayer[NumberOfLayers-1];j++){
+    bins[i]=(int**)calloc(lastNeurons,sizeof(int*));
+    for(j=0; j<lastNeurons; j++){
       bins[i][j]=(int*)calloc(nBins,sizeof(int));
     }
   }
   for(i=0;i<nclasses;i++){
     for(j=0;j<classevents[i];j++){
-      for(int k=0;k<NeuronsPerLayer[NumberOfLayers-1];k++){
+      for(int k=0; k<lastNeurons; k++){
       	int m;
       	double interval = (double)(max[k] - min[k] ) / nBins;
       	m=(int)((histdata[i][j][k]- minhisto)/0.05);
@@ -329,8 +365,57 @@ int main(int argc, char *argv[]){
     filename=folder+"/Class"+convert.str();
     savedata.open(filename.c_str());
     cout<<nBins<<endl;
+    for(j=0;j<nBins;j++){
+      savedata << setprecision(4) << fixed << (minhisto+0.025)+0.05*j;
+      for (int k=0; k<lastNeurons; k++){
+        savedata << "\t" << setw(6) << bins[i][k][j];
+      }
+      savedata << endl;
+    }
+    savedata.close();
+  }
+  return 0;
+}
+/*
+
+
+
+  bins=(int***)calloc(nclasses,sizeof(int**));
+  for(i=0;i<nclasses;i++){
+    bins[i]=(int**)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(int*));
+    for(j=0;j<NeuronsPerLayer[NumberOfLayers-1];j++){
+      bins[i][j]=(int*)calloc(nBins,sizeof(int));
+    }
+  }
+  
+  double* max=(double*)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(double));
+  double* min=(double*)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(double));
+  for(int i=0;i<NeuronsPerLayer[NumberOfLayers-1];i++){
+    min[i]=1;
+  }
+  for(i=0;i<nclasses;i++){
+    for(j=0;j<classevents[i];j++){
+      for(int k=0;k<NeuronsPerLayer[NumberOfLayers-1];k++){
+	if(histdata[i][j][k]<min[k])
+	  min[k]=histdata[i][j][k];
+	if(histdata[i][j][k]>max[k])
+	  max[k]=histdata[i][j][k];
+      }
+    }
+    for(j=0;j<classevents[i];j++){
+      for(int k=0;k<NeuronsPerLayer[NumberOfLayers-1];k++){
+	int m;
+	double interval = (double)(max[k] - min[k] ) / nBins;
+	m=(int)((histdata[i][j][k]- min[k])/interval);
+	bins[i][k][m]++;
+      }
+    }
+    ostringstream convert;
+    convert<<i;
+    filename=folder+"/Class"+convert.str();
+    savedata.open(filename.c_str());
     for(j=0;j<=nBins;j++){
-      savedata<<setprecision(4)<<fixed<<(minhisto+0.025)+0.05*j;
+      savedata<<setprecision(4)<<fixed<<(binsize*j+binsize*(j+1))/2;
       for(int k=0;k<NeuronsPerLayer[NumberOfLayers-1];k++){
 	savedata<<"\t"<<setw(6)<<bins[i][k][j];
       }
@@ -340,3 +425,4 @@ int main(int argc, char *argv[]){
   }
   return 0;
 }
+*/

@@ -8,3 +8,18 @@
 6
 4
 0.01
+2
+500
+
+0.02            # learning rate
+4               # nVars
+1000            # nEpochs
+4000            # nEvents
+4               # NumberOfLayers 
+5               # nodes of layer 0 (with bias node)
+10              # nodes of layer 1 (with bias node)
+6               # nodes of layer 2 (with bias node)
+4               # nodes of layer 3
+0.01            # decay rate for the learning rate
+3               # learning type, 1 online, 2 batch, 3 mixed of online and batch
+500             # number of events in one batch for mixed learnung
