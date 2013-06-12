@@ -40,9 +40,8 @@ int main(int argc, char *argv[]){
   double** testoutput;
   int* classevents;
   int nclasses;
-  int nBins=20;
   int*** bins;
-  double binsize=1.0/nBins;
+  double binsize=0.05;
   double*** histdata;
   CEvents* training=(CEvents*)malloc(sizeof(CEvents));;
   CEvents* testing=(CEvents*)malloc(sizeof(CEvents));;
@@ -281,6 +280,34 @@ int main(int argc, char *argv[]){
     }
     classevents[m]++;
   }
+
+  
+  double* max=(double*)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(double));
+  double* min=(double*)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(double));
+  int nBins=0;
+  double minhisto=1;
+  for(int i=0;i<NeuronsPerLayer[NumberOfLayers-1];i++){
+    min[i]=1;
+  }
+  for(i=0;i<nclasses;i++){
+    for(j=0;j<classevents[i];j++){
+      for(int k=0;k<NeuronsPerLayer[NumberOfLayers-1];k++){
+      	if(histdata[i][j][k]<min[k])
+      	  min[k]=histdata[i][j][k];
+      	if(histdata[i][j][k]>max[k])
+      	  max[k]=histdata[i][j][k];
+      }
+
+    }
+    for(int k=0;k<NeuronsPerLayer[NumberOfLayers-1];k++){
+      if(nBins<int(((-min[k]+0.025)/0.05)+1+((max[k]+0,025)/0.05)))
+        nBins=int(((-min[k]+0.025)/0.05)+1+((max[k]+0,025)/0.05));
+      if(minhisto>((min[k]-0.025)/0.05)*0.05-0.025)
+        minhisto=((min[k]-0.025)/0.05)*0.05-0.025;
+    }
+    if(nBins>=40)
+      nBins=40;
+  }
   bins=(int***)calloc(nclasses,sizeof(int**));
   for(i=0;i<nclasses;i++){
     bins[i]=(int**)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(int*));
@@ -288,35 +315,22 @@ int main(int argc, char *argv[]){
       bins[i][j]=(int*)calloc(nBins,sizeof(int));
     }
   }
-  
-  double* max=(double*)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(double));
-  double* min=(double*)calloc(NeuronsPerLayer[NumberOfLayers-1],sizeof(double));
-  for(int i=0;i<NeuronsPerLayer[NumberOfLayers-1];i++){
-    min[i]=1;
-  }
   for(i=0;i<nclasses;i++){
     for(j=0;j<classevents[i];j++){
       for(int k=0;k<NeuronsPerLayer[NumberOfLayers-1];k++){
-	if(histdata[i][j][k]<min[k])
-	  min[k]=histdata[i][j][k];
-	if(histdata[i][j][k]>max[k])
-	  max[k]=histdata[i][j][k];
-      }
-    }
-    for(j=0;j<classevents[i];j++){
-      for(int k=0;k<NeuronsPerLayer[NumberOfLayers-1];k++){
-	int m;
-	double interval = (double)(max[k] - min[k] ) / nBins;
-	m=(int)((histdata[i][j][k]- min[k])/interval);
-	bins[i][k][m]++;
+      	int m;
+      	double interval = (double)(max[k] - min[k] ) / nBins;
+      	m=(int)((histdata[i][j][k]- minhisto)/0.05);
+      	bins[i][k][m]++;
       }
     }
     ostringstream convert;
     convert<<i;
     filename=folder+"/Class"+convert.str();
     savedata.open(filename.c_str());
-    for(j=0;j<nBins;j++){
-      savedata<<setprecision(4)<<fixed<<(binsize*j+binsize*(j+1))/2;
+    cout<<nBins<<endl;
+    for(j=0;j<=nBins;j++){
+      savedata<<setprecision(4)<<fixed<<(minhisto+0.025)+0.05*j;
       for(int k=0;k<NeuronsPerLayer[NumberOfLayers-1];k++){
 	savedata<<"\t"<<setw(6)<<bins[i][k][j];
       }
