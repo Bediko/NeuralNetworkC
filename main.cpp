@@ -344,11 +344,14 @@ int main(int argc, char *argv[]){
         minhisto=((min[k]-0.025)/0.05)*0.05-0.025;
     }
   }
-  bins=(int***)calloc(nclasses,sizeof(int**));
+  bins=(int***)malloc(nclasses*sizeof(int**));
   for(i=0;i<nclasses;i++){
-    bins[i]=(int**)calloc(lastNeurons,sizeof(int*));
+    bins[i]=(int**)malloc(lastNeurons*sizeof(int*));
     for(j=0; j<lastNeurons; j++){
-      bins[i][j]=(int*)calloc(nBins,sizeof(int));
+      bins[i][j]=(int*)malloc(nBins*sizeof(int));
+      for(int k=0;k<nBins;k++){
+        bins[i][j][k]=0;
+      }
     }
   }
   for(i=0;i<nclasses;i++){
