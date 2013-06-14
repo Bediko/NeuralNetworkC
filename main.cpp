@@ -338,18 +338,22 @@ int main(int argc, char *argv[]){
 
     }
     for (int k=0; k<lastNeurons; k++){
-      if(nBins<int(((-min[k]+0.025)/0.05)+1+((max[k]+0.025)/0.05)))
-        nBins=int(((-min[k]+0.025)/0.05)+1+((max[k]+0.025)/0.05));
-      if(minhisto>((min[k]-0.025)/0.05)*0.05-0.025)
-        minhisto=((min[k]-0.025)/0.05)*0.05-0.025;
+      int tmp=int(((-min[k]+0.025)/0.05)+1+((max[k]+0.025)/0.05));
+      if(nBins<tmp)
+        nBins=tmp;
+
+      double tmp2=((min[k]-0.025)/0.05)*0.05-0.025;
+      if(minhisto>tmp2)
+        minhisto=tmp2;
     }
   }
+  nBins++;
   bins=(int***)malloc(nclasses*sizeof(int**));
   for(i=0;i<nclasses;i++){
     bins[i]=(int**)malloc(lastNeurons*sizeof(int*));
     for(j=0; j<lastNeurons; j++){
-      bins[i][j]=(int*)malloc(nBins*sizeof(int));
-      for(int k=0;k<nBins;k++){
+      bins[i][j]=(int*)malloc((nBins+1)*sizeof(int));
+      for(int k=0;k<=nBins;k++){
         bins[i][j][k]=0;
       }
     }
@@ -358,17 +362,19 @@ int main(int argc, char *argv[]){
     for(j=0;j<classevents[i];j++){
       for(int k=0; k<lastNeurons; k++){
       	int m;
-      	double interval = (double)(max[k] - min[k] ) / nBins;
       	m=(int)((histdata[i][j][k]- minhisto)/0.05);
+        if(m<0 || m>nBins)
+          cout<<"fehler "<<m<<endl;
       	bins[i][k][m]++;
       }
     }
+  }
+  for(i=0;i<nclasses;i++){
     ostringstream convert;
     convert<<i;
     filename=folder+"/Class"+convert.str();
     savedata.open(filename.c_str());
-    cout<<nBins<<endl;
-    for(j=0;j<nBins;j++){
+    for(j=0;j<=nBins;j++){
       savedata << setprecision(4) << fixed << (minhisto+0.025)+0.05*j;
       for (int k=0; k<lastNeurons; k++){
         savedata << "\t" << setw(6) << bins[i][k][j];
