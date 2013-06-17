@@ -31,6 +31,7 @@ def testing(folder,mode,outputs,classes,eventsperclass)
 				puts eventsperclass[i]
 				puts "Class#{i}"
 				puts "Output#{j}"
+				changeMode("#{folder}",$oldmode,$modeline)
 				exit
 			end
 			error=(mean.round(3)-events[i][j].round(3)).abs
@@ -41,6 +42,7 @@ def testing(folder,mode,outputs,classes,eventsperclass)
 				puts events[i][j]
 				puts "Class#{i}"
 				puts "Output#{j}"
+				changeMode("#{folder}",$oldmode,$modeline)
 				exit(0)
 			end
 		end
@@ -60,17 +62,36 @@ def changeMode(folder,mode,modeline)
 	return oldmode
 end
 
-
+ $modeline=9
+ $oldmode=changeMode("Classification",1,9)
  testing("Classification","sequential",1,2,[3000,3000])
- oldmode=changeMode("Classification",2,9)
+ changeMode("Classification",2,9)
  testing("Classification","batch",1,2,[3000,3000])
  changeMode("Classification",3,9)
  testing("Classification","mixed",1,2,[3000,3000])
  changeMode("Classification",oldmode,9)
 
+$modeline=10
+$oldmode=changeMode("Multiclass",1,10)
 testing("Multiclass","sequential",4,4,[1000,1000,1000,1000])
-oldmode=changeMode("Multiclass",2,10)
+changeMode("Multiclass",2,10)
 testing("Multiclass","batch",4,4,[1000,1000,1000,1000])
 changeMode("Multiclass",3,10)
 testing("Multiclass","mixed",4,4,[1000,1000,1000,1000])
 changeMode("Multiclass",oldmode,10)
+
+$oldmode=changeMode("mittel",1,10)
+testing("mittel","sequential",3,3,[4500,1395,112])
+changeMode("mittel",2,10)
+testing("mittel","batch",3,3,[4500,1395,112])
+changeMode("mittel",3,10)
+testing("mittel","mixed",3,3,[4500,1395,112])
+changeMode("mittel",oldmode,10)
+
+$oldmode=changeMode("gross",1,10)
+testing("gross","sequential",3,3,[94097,1395,112])
+changeMode("gross",2,10)
+testing("gross","batch",3,3,[94097,1395,112])
+changeMode("gross",3,10)
+testing("gross","mixed",3,3,[94097,1395,112])
+changeMode("gross",oldmode,10)
