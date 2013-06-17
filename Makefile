@@ -1,13 +1,17 @@
-CC=gcc
+CC=g++
 CFLAGS=-g -Wall -I.
+LDFLAGS=-lOpenCL
 DEPS = C_TrainMLP.h
 OBJ = main.o C_TrainMLP.o 
-LFLAGS=
-%.o: %.cxx $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+BIN=main
 
-main: $(OBJ)
-	g++ -o $@ $^ $(CFLAGS)
+%.o: %.cxx $(DEPS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -c $<
+
+all: $(BIN)
+
+$(BIN): $(OBJ)
+	$(CC) $(OBJ) $(LDFLAGS) -o $(BIN)
 
 clean:
 	rm -f *.o

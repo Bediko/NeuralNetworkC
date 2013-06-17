@@ -1,5 +1,6 @@
 #ifndef ROOT_TMVA_C_TRAINMLP
 #define ROOT_TMVA_C_TRAINMLP
+#include <CL/cl.h>
 
 
 struct CEvents{
@@ -26,5 +27,6 @@ void             CTrainMLP_m(CEvents* ev, double learnRate, int nVars, int nEpoc
 void CTrainMLP_testing(CEvents* ev, int nEpochs, int nEvents, double*** Synweights, 
 			     double** Neurons, int* NeuronsPerLayer, int NumberOfLayers, 
 			      int * bias, double** testout);
+cl_context CreateContext();
 
 #endif

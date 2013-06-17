@@ -7,6 +7,8 @@
 #include <sstream>
 #include <iomanip>
 using namespace std;
+#include <CL/cl.h>
+
 
 #include <sys/time.h>
 #include <unistd.h>
@@ -47,6 +49,7 @@ int main(int argc, char *argv[]){
   CEvents* testing  = (CEvents*)malloc(sizeof(CEvents));;
   int type,events;
   double start_t, stop_t, duration;
+  cl_context context;
 
   if (argc <=1){
     cout<<"Kein Ordner angegeben"<<endl;
@@ -163,6 +166,8 @@ int main(int argc, char *argv[]){
   }
   // all data read
 
+
+  context=CreateContext();
 
 
   // now train network,CTrainMLP for online and CTrainMLP_b for batch learning
@@ -363,8 +368,6 @@ int main(int argc, char *argv[]){
       for(int k=0; k<lastNeurons; k++){
       	int m;
       	m=(int)((histdata[i][j][k]- minhisto)/0.05);
-        if(m<0 || m>nBins)
-          cout<<"fehler "<<m<<endl;
       	bins[i][k][m]++;
       }
     }

@@ -3,6 +3,8 @@
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
+#include <CL/cl.h>
+
 
 
 
@@ -690,4 +692,38 @@ void CTrainMLP_testing(CEvents* ev, int nEpochs, int nEvents, double*** Synweigh
     }
   }		
   return;
+}
+/**
+ ***************************************************************************************************
+ *Creates context for openCL
+ *@param[out] context: Created context
+ ***************************************************************************************************/
+
+cl_context CreateContext(){
+  cl_int errNum;
+  cl_uint numPlatforms;
+  cl_platform_id firstPlatformId;
+  cl_context context=NULL;
+  //get Platform and choose first one
+  errNum = clGetPlatformIDs(1,&firstPlatformId, &numPlatforms);
+  if(errNum != CL_SUCCESS || numPlatforms<=0){
+    cerr<<"No OpenCL platforum found!"<<endl;
+    return NULL;
+  }
+  cl_context_properties contextProperties[]={
+    CL_CONTEXT_PLATFORM,
+    (cl_context_properties)firstPlatformId,
+    0
+  };
+  context = clCreateContextFromType(contextProperties, CL_DEVICE_TYPE_GPU,NULL,NULL,&errNum);
+  if (errNum!= CL_SUCCESS){
+    cout<<"Unable to create GPU context, try CPU..."<<endl;
+    context = clCreateContextFromType(contextProperties, CL_DEVICE_TYPE_CPU,NULL,NULL,&errNum);
+     if (errNum!= CL_SUCCESS){
+      cerr<<"Unable to create GPU or CPU context"<<endl;
+      return NULL;
+     }
+  }
+  cout<<"Created GPU context"<<endl;
+  return context;
 }
