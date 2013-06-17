@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -I.
+CFLAGS=-g -Wall -I.
 DEPS = C_TrainMLP.h
 OBJ = main.o C_TrainMLP.o 
 LFLAGS=
