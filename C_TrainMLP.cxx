@@ -3,6 +3,8 @@
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
+#include <CL/cl.h>
+
 
 
 
@@ -690,4 +692,77 @@ void CTrainMLP_testing(CEvents* ev, int nEpochs, int nEvents, double*** Synweigh
     }
   }		
   return;
+}
+/**
+ ***************************************************************************************************
+ *Creates context for openCL
+ *@param[out] context: Created context
+ ***************************************************************************************************/
+
+cl_context CTrainMLP_CreateContext(){
+  cl_int errNum;
+  cl_uint numPlatforms;
+  cl_platform_id firstPlatformId;
+  cl_context context=NULL;
+  //get Platform and choose first one
+  errNum = clGetPlatformIDs(1,&firstPlatformId, &numPlatforms);
+  if(errNum != CL_SUCCESS || numPlatforms<=0){
+    cerr<<"No OpenCL platforum found!"<<endl;
+    return NULL;
+  }
+  cl_context_properties contextProperties[]={
+    CL_CONTEXT_PLATFORM,
+    (cl_context_properties)firstPlatformId,
+    0
+  };
+  context = clCreateContextFromType(contextProperties, CL_DEVICE_TYPE_GPU,NULL,NULL,&errNum);
+  if (errNum!= CL_SUCCESS){
+    cout<<"Unable to create GPU context, try CPU..."<<endl;
+    context = clCreateContextFromType(contextProperties, CL_DEVICE_TYPE_CPU,NULL,NULL,&errNum);
+     if (errNum!= CL_SUCCESS){
+      cerr<<"Unable to create GPU or CPU context"<<endl;
+      return NULL;
+     }
+  }
+  cout<<"Created GPU context"<<endl;
+  return context;
+}
+
+/**
+***********************************************************************************************
+*Creates Command queue for opencl
+*@param[in] context: Context needed for Comannd queue
+*@param[in] device: Device ID
+*param[out] comandQueue: Created Command queue for specified context
+***********************************************************************************************/
+cl_command_queue CTrainMLP_CreateCommandQueue(cl_context context, cl_device_id *device){
+  cl_int errNum;
+  cl_device_id *devices;
+  cl_command_queue commandQueue = NULL;
+  size_t deviceBufferSize = -1;
+
+  errNum = clGetContextInfo(context, CL_CONTEXT_DEVICES,0,NULL,&deviceBufferSize);
+  if(errNum!=CL_SUCCESS){
+    cerr<<"Failed to get size of device buffer";
+    return NULL;
+  }
+  if(deviceBufferSize<=0){
+    cerr<<"No devices available";
+    return NULL;
+  }
+  //Allocate memory for device buffer
+  devices= new cl_device_id[deviceBufferSize/sizeof(cl_device_id)];
+  errNum= clGetContextInfo(context,CL_CONTEXT_DEVICES,deviceBufferSize,devices, NULL);
+  if(errNum!=CL_SUCCESS){
+    cerr<<"Failed to get device ID";
+    return NULL;
+  }
+  commandQueue = clCreateCommandQueue(context, devices[0], 0, NULL);
+  if(commandQueue==NULL){
+    cerr<<"Failed to create command queue";
+    return NULL;
+  }
+  *device = devices[0];
+  delete [] devices;
+  return commandQueue;
 }

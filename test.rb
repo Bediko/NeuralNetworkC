@@ -1,4 +1,5 @@
 require 'awesome_print'
+require 'benchmark'
 def testing(folder,mode,outputs,classes,eventsperclass)
 	puts "Testing #{folder} #{mode}"
 	test=`./main #{folder}`.split("\n")
@@ -27,23 +28,18 @@ def testing(folder,mode,outputs,classes,eventsperclass)
 			mean=mean/eventsperclass[i]
 			if nEvents!=eventsperclass[i]
 				puts "Anzahl der Events stimmen nicht im Histogramm"
-				puts nEvents
-				puts eventsperclass[i]
+				puts "wirklich: #{nEvents}"
+				puts "erwartet: #{eventsperclass[i]}"
 				puts "Class#{i}"
 				puts "Output#{j}"
-				changeMode("#{folder}",$oldmode,$modeline)
-				exit
 			end
 			error=(mean.round(3)-events[i][j].round(3)).abs
 			if error>0.1
 				puts "Werte in Histogramm falsch"
-				puts nEvents
-				puts mean
-				puts events[i][j]
+				puts "wirklich:#{mean}"
+				puts "erwartet:#{events[i][j]}"
 				puts "Class#{i}"
 				puts "Output#{j}"
-				changeMode("#{folder}",$oldmode,$modeline)
-				exit(0)
 			end
 		end
 	end
@@ -64,34 +60,45 @@ end
 
  $modeline=9
  $oldmode=changeMode("Classification",1,9)
- testing("Classification","sequential",1,2,[3000,3000])
+ time=Benchmark.realtime{testing("Classification","sequential",1,2,[3000,3000])}
+puts time
  changeMode("Classification",2,9)
- testing("Classification","batch",1,2,[3000,3000])
+ time=Benchmark.realtime{testing("Classification","batch",1,2,[3000,3000])}
+puts time
  changeMode("Classification",3,9)
- testing("Classification","mixed",1,2,[3000,3000])
- changeMode("Classification",$oldmode,9)
+ time=Benchmark.realtime{testing("Classification","mixed",1,2,[3000,3000])}
+puts time 
+changeMode("Classification",$oldmode,9)
 
 $modeline=10
 $oldmode=changeMode("Multiclass",1,10)
-testing("Multiclass","sequential",4,4,[1000,1000,1000,1000])
+time=Benchmark.realtime{testing("Multiclass","sequential",4,4,[1000,1000,1000,1000])}
+puts time
 changeMode("Multiclass",2,10)
-testing("Multiclass","batch",4,4,[1000,1000,1000,1000])
+time=Benchmark.realtime{testing("Multiclass","batch",4,4,[1000,1000,1000,1000])}
+puts time
 changeMode("Multiclass",3,10)
-testing("Multiclass","mixed",4,4,[1000,1000,1000,1000])
+time=Benchmark.realtime{testing("Multiclass","mixed",4,4,[1000,1000,1000,1000])}
+puts time
 changeMode("Multiclass",$oldmode,10)
 
 $oldmode=changeMode("mittel",1,10)
-testing("mittel","sequential",3,3,[4500,1395,112])
+time=Benchmark.realtime{testing("mittel","sequential",3,3,[4500,1395,112])}
 changeMode("mittel",2,10)
-testing("mittel","batch",3,3,[4500,1395,112])
+puts time
+time=Benchmark.realtime{testing("mittel","batch",3,3,[4500,1395,112])}
 changeMode("mittel",3,10)
-testing("mittel","mixed",3,3,[4500,1395,112])
+puts time
+time=Benchmark.realtime{testing("mittel","mixed",3,3,[4500,1395,112])}
 changeMode("mittel",$oldmode,10)
-
+puts time
 $oldmode=changeMode("gross",1,10)
-testing("gross","sequential",3,3,[94097,1395,112])
+time=Benchmark.realtime{testing("gross","sequential",3,3,[94097,1395,112])}
+puts time
 changeMode("gross",2,10)
-testing("gross","batch",3,3,[94097,1395,112])
+time=Benchmark.realtime{testing("gross","batch",3,3,[94097,1395,112])}
+puts time
 changeMode("gross",3,10)
-testing("gross","mixed",3,3,[94097,1395,112])
+time=Benchmark.realtime{testing("gross","mixed",3,3,[94097,1395,112])}
+puts time
 changeMode("gross",$oldmode,10)

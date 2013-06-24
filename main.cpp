@@ -7,6 +7,8 @@
 #include <sstream>
 #include <iomanip>
 using namespace std;
+#include <CL/cl.h>
+
 
 #include <sys/time.h>
 #include <unistd.h>
@@ -193,6 +195,28 @@ int main(int argc, char *argv[]){
 		NumberOfLayers, bias, decayrate, events);
   }
 
+  if (type == 4){
+    cl_context context=0;
+    cl_command_queue commandQueue=0;
+    cl_program program=0;
+    cl_device_id device=0;
+    cl_kernel kernel=0;
+    cl_mem memObjects[10]= {0,0,0,0,0,0,0,0,0,0};
+    cl_int errNum;
+    context=CTrainMLP_CreateContext();
+    if(context==NULL){
+      cout<<"unable to create context. Abort."<<endl;
+      return 1;
+    }
+    commandQueue= CTrainMLP_CreateCommandQueue(context,&device);
+    if(commandQueue==NULL){
+      cout<<"Unable to create command queue. Abort."<<endl;
+      return 1;
+    }
+    cout<<"batch learning on GPU"<<endl;
+
+  }
+
 
   duration = second()- start_t;
   
@@ -322,10 +346,10 @@ int main(int argc, char *argv[]){
   double* max=(double*)calloc(lastNeurons,sizeof(double));
   double* min=(double*)calloc(lastNeurons,sizeof(double));
   int nBins=0;
-  double minhisto=1;
+  double minhisto=100;
   for (int i=0; i < lastNeurons; i++){
-    min[i]=1.0;
-    max[i]=0.0;
+    min[i]=100.0;
+    max[i]=-100.0;
   }
   for (i=0; i<nclasses; i++) {
     for (j=0; j<classevents[i]; j++) {
@@ -335,19 +359,26 @@ int main(int argc, char *argv[]){
       	if (histdata[i][j][k] > max[k])
       	  max[k] = histdata[i][j][k];
       }
-
     }
+    double gmax=-100;
+    double gmin=100;
+    for (int k=0; k<lastNeurons; k++) {
+        if (min[k] < gmin)
+          gmin=min[k];
+        if (max[k]>gmax)
+          gmax=max[k];
+      }
     for (int k=0; k<lastNeurons; k++){
-      int tmp=int(((-min[k]+0.025)/0.05)+1+((max[k]+0.025)/0.05));
+      int tmp=(int)(((-gmin-0.025)/0.05)+1+(gmax+0.025)/0.05);
       if(nBins<tmp)
         nBins=tmp;
 
-      double tmp2=((min[k]-0.025)/0.05)*0.05-0.025;
+      double tmp2=(int)((gmin-0.025)/0.05)*0.05-0.025;
       if(minhisto>tmp2)
         minhisto=tmp2;
     }
   }
-  nBins++;
+  //nBins++;
   bins=(int***)malloc(nclasses*sizeof(int**));
   for(i=0;i<nclasses;i++){
     bins[i]=(int**)malloc(lastNeurons*sizeof(int*));
@@ -363,8 +394,10 @@ int main(int argc, char *argv[]){
       for(int k=0; k<lastNeurons; k++){
       	int m;
       	m=(int)((histdata[i][j][k]- minhisto)/0.05);
-        if(m<0 || m>nBins)
-          cout<<"fehler "<<m<<endl;
+          if(m>nBins || m<0){
+          cout<<"fehler: "<<m<<endl;
+          continue;
+        }
       	bins[i][k][m]++;
       }
     }
