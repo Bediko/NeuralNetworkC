@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-g -Wall -I.
+CFLAGS= -Wall -I. -O3 -march=native -funroll-loops -funroll-all-loops -floop-optimize -finline-functions
 LDFLAGS=-lOpenCL
 DEPS = C_TrainMLP.h
 OBJ = main.o C_TrainMLP.o 
