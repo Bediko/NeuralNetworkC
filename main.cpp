@@ -49,6 +49,9 @@ int main(int argc, char *argv[]){
   CEvents* testing  = (CEvents*)malloc(sizeof(CEvents));;
   int type,events;
   double start_t, stop_t, duration;
+  int* eventClass;
+  double* eventWeights;
+  double** eventValues;
 
   if (argc <=1){
     cout<<"Kein Ordner angegeben"<<endl;
@@ -103,6 +106,10 @@ int main(int argc, char *argv[]){
   training->eventWeights=(double*) malloc(nEvents*sizeof(double));
   training->eventValues =(double**)malloc(nEvents*sizeof(double*));
 
+  eventClass  =  (int*)  malloc(nEvents*sizeof(int));
+  eventWeights=(double*) malloc(nEvents*sizeof(double));
+  eventValues =(double**)malloc(nEvents*sizeof(double*));
+
   testing->eventClass   =  (int*)  malloc(nEvents*sizeof(int));
   testing->eventWeights =(double*) malloc(nEvents*sizeof(double));
   testing->eventValues  =(double**)malloc(nEvents*sizeof(double*));
@@ -111,6 +118,7 @@ int main(int argc, char *argv[]){
   testing->eventValues[0] =(double*)malloc(nEvents*nVars*sizeof(double));
   for (i=1; i<nEvents; i++) {
     training->eventValues[i]=training->eventValues[0]+i*nVars;
+    eventValues[i]=training->eventValues[0]+i*nVars;
     testing->eventValues[i] =testing->eventValues[0]+i*nVars;
   }
 
@@ -203,6 +211,16 @@ int main(int argc, char *argv[]){
     cl_kernel kernel=0;
     cl_mem memObjects[10]= {0,0,0,0,0,0,0,0,0,0};
     cl_int errNum;
+
+    float *desired;  // desired output value for each output neuron.
+    desired = (float *) malloc(NeuronsPerLayer[NumberOfLayers - 1] * sizeof(float));
+
+    float **deltas;  // deltas, used in back propagation, index1: Layer index2: Neuron
+    deltas = (float **) malloc(NumberOfLayers * sizeof(float *));
+    for (l = 0; l < NumberOfLayers; l++) {
+        deltas[l] = (float *)malloc(NeuronsPerLayer[l] * sizeof(float));
+    }
+
     context=CTrainMLP_CreateContext();
     if(context==NULL){
       cout<<"unable to create context. Abort."<<endl;
@@ -213,6 +231,7 @@ int main(int argc, char *argv[]){
       cout<<"Unable to create command queue. Abort."<<endl;
       return 1;
     }
+    program = CTrainMLP_CreateProgram(context, device, "kernelonline.cl");
     cout<<"batch learning on GPU"<<endl;
 
   }

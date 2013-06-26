@@ -31,5 +31,7 @@ cl_context CTrainMLP_CreateContext();
 
 cl_command_queue CTrainMLP_CreateCommandQueue(cl_context context,cl_device_id *device);
 
+cl_program CTrainMLP_CreateProgram(cl_context context, cl_device_id device, const char* fileName);
+
 
 #endif
