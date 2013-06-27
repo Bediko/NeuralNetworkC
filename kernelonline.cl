@@ -13,16 +13,21 @@ kernel void CTrainMLP(global int* eventClass,global double* eventWeights,global 
 
     //Create Vector of desired Values for back propagation
     
-
+    int totalneurons[4];
+    int sum=0;
     // allocate neurons
-  
+    
 
     // set neurons of bias nodes
     for (i = 0; i < NumberOfLayers - 1; i++) {
+        sum+=NeuronsPerLayer[i];
+        totalneurons[i]=sum;
         if (bias[i] != 0) {
-            Neurons[i][NeuronsPerLayer[i] - 1] = 1.0;
+            Neurons[totalneurons[i] - 1] = 1.0;
         }
     }
+    sum+=NeuronsPerLayer[NumberOfLayers-1];
+    totalneurons[4]=sum;
 
     // online learning
     for (int nEp = 0; nEp < nEpochs; nEp++) {     //for each epoch
