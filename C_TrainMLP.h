@@ -27,6 +27,7 @@ void             CTrainMLP_m(CEvents* ev, double learnRate, int nVars, int nEpoc
 void CTrainMLP_testing(CEvents* ev, int nEpochs, int nEvents, double*** Synweights, 
 			     double** Neurons, int* NeuronsPerLayer, int NumberOfLayers, 
 			      int * bias, double** testout);
+void check_error(int error);
 cl_context CTrainMLP_CreateContext();
 
 cl_command_queue CTrainMLP_CreateCommandQueue(cl_context context,cl_device_id *device);

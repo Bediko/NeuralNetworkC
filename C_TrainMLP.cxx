@@ -705,23 +705,81 @@ cl_context CTrainMLP_CreateContext(){
   cl_uint numPlatforms;
   cl_platform_id firstPlatformId;
   cl_context context=NULL;
+  cl_device_id device;
   //get Platform and choose first one
   errNum = clGetPlatformIDs(1,&firstPlatformId, &numPlatforms);
   if(errNum != CL_SUCCESS || numPlatforms<=0){
     cerr<<"No OpenCL platforum found!"<<endl;
     return NULL;
   }
-  cl_context_properties contextProperties[]={
+
+    char buffer[10240];
+    printf("=====  Platform 0 =====\n");
+    clGetPlatformInfo(firstPlatformId,CL_PLATFORM_PROFILE,10240, buffer,NULL);
+    printf("  PROFILE = %s\n", buffer);
+    clGetPlatformInfo(firstPlatformId,CL_PLATFORM_VERSION,10240, buffer,NULL);
+    printf("  VERSION = %s\n", buffer);
+    clGetPlatformInfo(firstPlatformId,CL_PLATFORM_NAME,10240, buffer,NULL);
+    printf("  NAME = %s\n", buffer);
+    clGetPlatformInfo(firstPlatformId,CL_PLATFORM_VENDOR,10240, buffer,NULL);
+    printf("  VENDOR = %s\n", buffer);
+  //  clGetPlatformInfo(platforms[i],CL_PLATFORM_EXTENSIONS,10240,buffer,NULL);
+  //  printf("  EXTENSIONS = %s\n", buffer);
+
+    cl_uint devices_n;
+
+    // get the GPU-devices of platform i, print details of the device
+    errNum = clGetDeviceIDs( firstPlatformId, CL_DEVICE_TYPE_ALL, 1, &device, 
+        &devices_n);
+    if (errNum != CL_SUCCESS)
+      printf("error getting device IDS\n");
+    printf("  === %d OpenCL device(s) found on platform: 0\n\n", devices_n);
+    for (unsigned int d=0; d<devices_n; d++)
+    {
+      char buffer[10240];
+      cl_uint buf_uint;
+      cl_ulong buf_ulong;
+      printf("  === --- Device -- %d \n", d);
+      (clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(buffer), 
+           buffer, NULL));
+      printf("    DEVICE_NAME = %s\n", buffer);
+      (clGetDeviceInfo(device, CL_DEVICE_VENDOR, sizeof(buffer), 
+           buffer, NULL));
+      printf("    DEVICE_VENDOR = %s\n", buffer);
+      (clGetDeviceInfo(device, CL_DEVICE_VERSION, sizeof(buffer), 
+           buffer, NULL));
+      printf("    DEVICE_VERSION = %s\n", buffer);
+      (clGetDeviceInfo(device, CL_DRIVER_VERSION, sizeof(buffer), 
+           buffer, NULL));
+      printf("    DRIVER_VERSION = %s\n", buffer);
+      (clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS, 
+           sizeof(buf_uint), &buf_uint, NULL));
+      printf("    DEVICE_MAX_COMPUTE_UNITS = %u\n", (unsigned int)buf_uint);
+      (clGetDeviceInfo(device, CL_DEVICE_MAX_CLOCK_FREQUENCY, 
+           sizeof(buf_uint), &buf_uint, NULL));
+      printf("    DEVICE_MAX_CLOCK_FREQUENCY = %u\n", (unsigned int)buf_uint);
+      (clGetDeviceInfo(device, CL_DEVICE_GLOBAL_MEM_SIZE, 
+           sizeof(buf_ulong), &buf_ulong, NULL));
+      printf("    DEVICE_GLOBAL_MEM_SIZE = %u\n\n", (unsigned int)buf_ulong);
+    }
+    if (devices_n == 0)
+    {
+      printf("error, on platform 0, there is no GPU device\n");
+    }
+
+  cl_context_properties contextProperties[3]={
     CL_CONTEXT_PLATFORM,
     (cl_context_properties)firstPlatformId,
     0
   };
-  context = clCreateContextFromType(contextProperties, CL_DEVICE_TYPE_GPU,NULL,NULL,&errNum);
+  context = clCreateContext(contextProperties, devices_n,&device,NULL,NULL,&errNum);
   if (errNum!= CL_SUCCESS){
     cout<<"Unable to create GPU context, try CPU..."<<endl;
-    context = clCreateContextFromType(contextProperties, CL_DEVICE_TYPE_CPU,NULL,NULL,&errNum);
+    check_error(errNum);
+    context = clCreateContextFromType(contextProperties, CL_DEVICE_TYPE_ALL,NULL,NULL,&errNum);
      if (errNum!= CL_SUCCESS){
       cerr<<"Unable to create GPU or CPU context"<<endl;
+      check_error(errNum);
       return NULL;
      }
   }
@@ -810,4 +868,95 @@ cl_program CTrainMLP_CreateProgram(cl_context context, cl_device_id device, cons
     }
 
     return program;
+}
+
+void check_error(int error)
+{
+  if(error == CL_SUCCESS)
+    printf("SUCCESS\n");
+  else if(error == CL_INVALID_PLATFORM)
+    printf("CL_INVALID_PLATFORM\n");
+  else if(error == CL_INVALID_DEVICE_TYPE)
+    printf("CL_INVALID_DEVICE_TYPE\n");
+  else if(error == CL_INVALID_VALUE)
+    printf("CL_INVALID_VALUE\n");
+  else if(error == CL_DEVICE_NOT_FOUND)
+    printf("CL_DEVICE_NOT_FOUND\n");
+  else if(error == CL_DEVICE_NOT_AVAILABLE)
+    printf("CL_DEVICE_NOT_AVAILABLE\n");
+  else if(error == CL_INVALID_HOST_PTR)
+    printf("CL_INVALID_HOST_PTR\n");
+  else if(error == CL_INVALID_OPERATION)
+    printf("CL_INVALID_OPERATION\n");
+  else if(error == CL_INVALID_VALUE)
+    printf("CL_INVALID_VALUE\n");
+  else if(error == CL_INVALID_CONTEXT)
+    printf("CL_INVALID_CONTEXT\n");
+  else if(error == CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+    printf("CL_INVALID_IMAGE_FORMAT_DESCRIPTOR\n");
+  else if(error == CL_OUT_OF_HOST_MEMORY)
+    printf("CL_OUT_OF_HOST_MEMORY\n");
+  else if(error == CL_INVALID_OPERATION)
+    printf("CL_INVALID_OPERATION\n");
+  else if(error == CL_INVALID_BUFFER_SIZE)
+    printf("CL_INVALID_BUFFER_SIZE\n");
+  else if(error == CL_INVALID_PROGRAM)
+    printf("CL_INVALID_PROGRAM\n");
+  else if(error == CL_INVALID_PROGRAM_EXECUTABLE)
+    printf("CL_INVALID_PROGRAM_EXECUTABLE\n");
+  else if(error == CL_INVALID_KERNEL_NAME)
+    printf("CL_INVALID_KERNEL_NAME\n");
+  else if(error == CL_INVALID_KERNEL_DEFINITION)
+    printf("CL_INVALID_KERNEL_DEFINITION\n");
+  else if(error == CL_INVALID_KERNEL)
+    printf("CL_INVALID_KERNEL\n");
+  else if(error == CL_INVALID_ARG_INDEX)
+    printf("CL_INVALID_ARG_INDEX\n");
+  else if(error == CL_INVALID_ARG_VALUE)
+    printf("CL_INVALID_ARG_VALUE\n");
+  else if(error == CL_INVALID_MEM_OBJECT)
+    printf("CL_INVALID_MEM_OBJECT\n");
+  else if(error == CL_INVALID_SAMPLER)
+    printf("CL_INVALID_SAMPLER\n");
+  else if(error == CL_INVALID_ARG_SIZE)
+    printf("CL_INVALID_ARG_SIZE\n");
+  else if(error == CL_INVALID_VALUE)
+    printf("CL_INVALID_VALUE\n");
+  else if(error == CL_MEM_OBJECT_ALLOCATION_FAILURE)
+    printf("CL_MEM_OBJECT_ALLOCATION_FAILURE\n");
+  else if(error == CL_INVALID_COMMAND_QUEUE)
+    printf("CL_INVALID_COMMAND_QUEUE\n");
+  else if(error == CL_INVALID_CONTEXT)
+    printf("CL_INVALID_CONTEXT\n");
+  else if(error == CL_INVALID_EVENT_WAIT_LIST)
+    printf("CL_INVALID_EVENT_WAIT_LIST\n");
+  else if(error == CL_OUT_OF_HOST_MEMORY)
+    printf("CL_OUT_OF_HOST_MEMORY\n");
+  else if(error == CL_INVALID_PROGRAM_EXECUTABLE)
+    printf("CL_INVALID_PROGRAM_EXECUTABLE\n");
+  else if(error == CL_INVALID_COMMAND_QUEUE )
+    printf("CL_INVALID_COMMAND_QUEUE \n");
+  else if(error == CL_INVALID_KERNEL)
+    printf("CL_INVALID_KERNEL\n");
+  else if(error == CL_INVALID_CONTEXT)
+    printf("CL_INVALID_CONTEXT\n");
+  else if(error == CL_INVALID_KERNEL_ARGS)
+    printf("CL_INVALID_KERNEL_ARGS\n");
+  else if(error == CL_INVALID_WORK_DIMENSION)
+    printf("CL_INVALID_WORK_DIMENSION\n");
+  else if(error == CL_INVALID_WORK_GROUP_SIZE)
+    printf("CL_INVALID_WORK_GROUP_SIZE\n");
+  else if(error == CL_INVALID_GLOBAL_OFFSET )
+    printf("CL_INVALID_GLOBAL_OFFSET \n");
+  else if(error == CL_OUT_OF_RESOURCES )
+    printf("CL_OUT_OF_RESOURCES \n");
+  else if(error == CL_MEM_OBJECT_ALLOCATION_FAILURE)
+    printf("CL_MEM_OBJECT_ALLOCATION_FAILURE\n");
+  else if(error == CL_INVALID_EVENT_WAIT_LIST)
+    printf("CL_INVALID_EVENT_WAIT_LIST\n");
+  else if(error == CL_OUT_OF_HOST_MEMORY)
+    printf("CL_OUT_OF_HOST_MEMORY\n");
+  else
+    printf("unbekannter ERROR\n");
+
 }
