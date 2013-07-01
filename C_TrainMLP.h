@@ -37,11 +37,13 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
 
 void check_error(int error);
 
+
 cl_context CTrainMLP_CreateContext();
 
 cl_command_queue CTrainMLP_CreateCommandQueue(cl_context context, cl_device_id *device);
 
-cl_program CTrainMLP_CreateProgram(cl_context context, cl_device_id device, const char *fileName);
+cl_program CTrainMLP_CreateProgram(cl_context context, cl_device_id device, const char *fileName, int nEvents, int NumberOfLayers, int nEpochs, int totalNeurons);
 
-
+void Cleanup(cl_context context, cl_command_queue commandQueue,
+             cl_program program, cl_kernel kernel, cl_mem memObjects[3]);
 #endif

@@ -1173,7 +1173,7 @@ cl_command_queue CTrainMLP_CreateCommandQueue(cl_context context, cl_device_id *
 }
 
 
-cl_program CTrainMLP_CreateProgram(cl_context context, cl_device_id device, const char *fileName)
+cl_program CTrainMLP_CreateProgram(cl_context context, cl_device_id device, const char *fileName, int nEvents, int NumberOfLayers, int nEpochs, int totalNeurons)
 {
     cl_int errNum;
     cl_program program;
@@ -1185,6 +1185,11 @@ cl_program CTrainMLP_CreateProgram(cl_context context, cl_device_id device, cons
     }
 
     std::ostringstream oss;
+    oss << "#pragma OPENCL EXTENSION cl_khr_fp64: enable"<<endl;
+    oss << "#define NEVENTS "<<nEvents<<endl;
+    oss << "#define NUMBEROFLAYERS "<<NumberOfLayers<<endl;
+    oss << "#define NEPOCHS "<< nEpochs<<endl;
+    oss << "#define TOTALNEURONS "<<totalNeurons<<endl;
     oss << kernelFile.rdbuf();
 
     std::string srcStdStr = oss.str();
@@ -1212,6 +1217,30 @@ cl_program CTrainMLP_CreateProgram(cl_context context, cl_device_id device, cons
 
     return program;
 }
+
+void Cleanup(cl_context context, cl_command_queue commandQueue,
+             cl_program program, cl_kernel kernel, cl_mem memObjects[10])
+{
+    for (int i = 0; i < 10; i++)
+    {
+        if (memObjects[i] != 0)
+            clReleaseMemObject(memObjects[i]);
+    }
+    if (commandQueue != 0)
+        clReleaseCommandQueue(commandQueue);
+
+    if (kernel != 0)
+        clReleaseKernel(kernel);
+
+    if (program != 0)
+        clReleaseProgram(program);
+
+    if (context != 0)
+        clReleaseContext(context);
+
+}
+
+
 
 void check_error(int error)
 {

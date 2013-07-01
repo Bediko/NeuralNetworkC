@@ -1,33 +1,65 @@
 #pragma OPENCL EXTENSION cl_khr_fp64: enable
+#define FUNCTION  tanh     //function
+#define DERIVATE tanhd     //derivate of function
 
 
-kernel void CTrainMLP(global int* eventClass,global double* eventWeights,global double* eventValues,  double learnRate, int nVars, int nEpochs,
-              int nEvents, global double* Synweights,
-               global int *NeuronsPerLayer,  int NumberOfLayers, global int *bias,
-               double decayRate,  double max,  double min, global double* desired, global double *deltas,global double *Neurons)
+double tanhd(double value)
+{
+    return 1.0 - value * value;
+}
+
+__kernel void CTrainMLP_kernel(global int *eventClass, global double *eventWeights, global double *eventValues,  double learnRate, int nVars,
+                               global double *Synweightsout,
+                               global int *NeuronsPerLayer, global int *bias,
+                               double decayRate)
 {
     int l, i, j, k;       //indices in for loops
+    int nEpochs = NEPOCHS;
     int lateEpochs = (int)(nEpochs * 0.95) - 1; // taken from TMVA for better learning
 
+    int NumberOfLayers = NUMBEROFLAYERS;
+    int nEvents = NEVENTS;
+
+    int lastLayer   = NumberOfLayers - 1;
+    int lastNeurons = NeuronsPerLayer[lastLayer];
+
+    double Neurons[NUMBEROFLAYERS][TOTALNEURONS];
+    double deltas[NUMBEROFLAYERS][TOTALNEURONS];
+    double Synweights[NUMBEROFLAYERS][TOTALNEURONS][TOTALNEURONS];
+
+    double desired[4];
+    for (i = 0; i < lastNeurons; i++) {
+        for (int nEv = 0; nEv < nEvents; nEv++) {
+            if (eventClass[nEv] == i) {
+                desired[i] = 1.0;
+            } else {
+                desired[i] = 0.0;
+            }
+        }
+    }
+
+    for (l = 0; l < NumberOfLayers - 1; l++) {
+        for (i = 0; i < NeuronsPerLayer[l]; i++) {
+            for (j = 0; j < NeuronsPerLayer[l + 1] - bias[l + 1]; j++) {
+                Synweights[l][i][j] = Synweightsout[l * NumberOfLayers + i * NeuronsPerLayer[l] + j];
+            }
+        }
+    }
     double sumdeltas = 0.0; // Sum of delta_k*weight_jk used in back propagation
 
     //Create Vector of desired Values for back propagation
-    
-    int totalneurons[4];
-    int sum=0;
+
+    int sum = 0;
     // allocate neurons
-    
+
 
     // set neurons of bias nodes
     for (i = 0; i < NumberOfLayers - 1; i++) {
-        sum+=NeuronsPerLayer[i];
-        totalneurons[i]=sum;
         if (bias[i] != 0) {
-            Neurons[totalneurons[i] - 1] = 1.0;
+            Neurons[i][NeuronsPerLayer[i] - 1] = 1.0;
         }
     }
-    sum+=NeuronsPerLayer[NumberOfLayers-1];
-    totalneurons[4]=sum;
+    sum += NeuronsPerLayer[NumberOfLayers - 1];
 
     // online learning
     for (int nEp = 0; nEp < nEpochs; nEp++) {     //for each epoch
@@ -50,7 +82,7 @@ kernel void CTrainMLP(global int* eventClass,global double* eventWeights,global 
             for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++) {
                 //Use Eventvalues as output of the input layer to make
                 //the next step easier.
-                Neurons[0][i] = eventValues[nEv][i];
+                Neurons[0][i] = eventValues[nEv + i];
             }
 
             //forward propagation
@@ -127,5 +159,13 @@ kernel void CTrainMLP(global int* eventClass,global double* eventWeights,global 
         }
 
     } // end loop over epochs
+
+    for (l = 0; l < NumberOfLayers - 1; l++) {
+        for (i = 0; i < NeuronsPerLayer[l]; i++) {
+            for (j = 0; j < NeuronsPerLayer[l + 1] - bias[l + 1]; j++) {
+                Synweightsout[l * NumberOfLayers + i * NeuronsPerLayer[l] + j] = Synweights[l][i][j];
+            }
+        }
+    }
     return;
 }
