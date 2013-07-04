@@ -1,7 +1,7 @@
 CC    = gcc
 
 CFLAGS= -g -c -O3 -funroll-loops -funroll-all-loops -fomit-frame-pointer \
-	-finline-functions -march=native -mtune=native -Wall -DBLAS
+	-finline-functions -march=native -mtune=native -Wall -DBLAS -I/usr/local/cuda-5.0/include
 
 DEPS  = C_TrainMLP.h
 

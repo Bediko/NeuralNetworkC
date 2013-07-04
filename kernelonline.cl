@@ -1,6 +1,7 @@
-#pragma OPENCL EXTENSION cl_khr_fp64: enable
+
 #define FUNCTION  tanh     //function
 #define DERIVATE tanhd     //derivate of function
+#pragma OPENCL EXTENSION cl_khr_fp64: enable
 
 
 double tanhd(double value)
@@ -8,9 +9,40 @@ double tanhd(double value)
     return 1.0 - value * value;
 }
 
-__kernel void CTrainMLP_kernel(global int *eventClass, global double *eventWeights, global double *eventValues,  double learnRate, int nVars,
-                               global double *Synweightsout,
-                               global int *NeuronsPerLayer, global int *bias,
+
+__kernel void CTrainMLP_forward_tanh(__global double *Neurons,__global double *weights,__global double *out, __global int *uplayer, __global int *downlayer){
+    int tx = get_local_id(0);
+    __local int ul;
+    __local int dl;
+    dl=downlayer[0];
+    ul=uplayer[0];
+    if(tx<ul){
+        out[tx] = 0.0;
+        for (int i=0;i<dl;i++)
+            out[tx]+=Neurons[i]*weights[tx*dl+i];
+       
+        out[tx]=tanh(out[tx]);
+    }
+    return;
+}
+__kernel void CTrainMLP_forward_linear(__global double *Neurons,__global double *weights,__global double *out, __global int *uplayer, __global int *downlayer){
+    int tx = get_local_id(0);
+    __local int ul;
+    __local int dl;
+    dl=downlayer[0];
+    ul=uplayer[0];
+    if(tx<ul){
+        out[tx] = 0.0;
+        for (int i=0;i<dl;i++)
+            out[tx]+=Neurons[i]*weights[tx*dl+i];
+    }
+    return;
+}
+
+
+/*__kernel void CTrainMLP_kernel(__global int *eventClass, __global double *eventWeights, __global double *eventValues,  double learnRate, int nVars,
+                               __global double *Synweightsout,
+                               __global int *NeuronsPerLayer, __global int *bias,
                                double decayRate)
 {
     int l, i, j, k;       //indices in for loops
@@ -21,13 +53,13 @@ __kernel void CTrainMLP_kernel(global int *eventClass, global double *eventWeigh
     int nEvents = NEVENTS;
 
     int lastLayer   = NumberOfLayers - 1;
-    int lastNeurons = NeuronsPerLayer[lastLayer];
+    int lastNeurons = LASTNEURONS;
 
     double Neurons[NUMBEROFLAYERS][TOTALNEURONS];
     double deltas[NUMBEROFLAYERS][TOTALNEURONS];
-    double Synweights[NUMBEROFLAYERS][TOTALNEURONS][TOTALNEURONS];
+    __local double Synweights[NUMBEROFLAYERS][TOTALNEURONS][TOTALNEURONS];
 
-    double desired[4];
+    double desired[LASTNEURONS];
     for (i = 0; i < lastNeurons; i++) {
         for (int nEv = 0; nEv < nEvents; nEv++) {
             if (eventClass[nEv] == i) {
@@ -41,7 +73,7 @@ __kernel void CTrainMLP_kernel(global int *eventClass, global double *eventWeigh
     for (l = 0; l < NumberOfLayers - 1; l++) {
         for (i = 0; i < NeuronsPerLayer[l]; i++) {
             for (j = 0; j < NeuronsPerLayer[l + 1] - bias[l + 1]; j++) {
-                Synweights[l][i][j] = Synweightsout[l * NumberOfLayers + i * NeuronsPerLayer[l] + j];
+                Synweights[l][i][j] = Synweightsout[l+i+j];
             }
         }
     }
@@ -76,7 +108,7 @@ __kernel void CTrainMLP_kernel(global int *eventClass, global double *eventWeigh
                     desired[i] = 0.0;
                 }
             }
-
+            
             // aus eventValue bias-Knoten wieder raus und for-loop nur
             // bis < NeuronsPerLayer[0]-1
             for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++) {
@@ -158,14 +190,14 @@ __kernel void CTrainMLP_kernel(global int *eventClass, global double *eventWeigh
             learnRate *= (1.0 - decayRate);
         }
 
-    } // end loop over epochs
+    }  // end loop over epochs
 
     for (l = 0; l < NumberOfLayers - 1; l++) {
         for (i = 0; i < NeuronsPerLayer[l]; i++) {
             for (j = 0; j < NeuronsPerLayer[l + 1] - bias[l + 1]; j++) {
-                Synweightsout[l * NumberOfLayers + i * NeuronsPerLayer[l] + j] = Synweights[l][i][j];
+                Synweightsout[l+i+j] = Synweights[l][i][j];
             }
         }
     }
     return;
-}
+}*/

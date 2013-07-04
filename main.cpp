@@ -225,150 +225,17 @@ int main(int argc, char *argv[])
     }
 
     if (type == 4) {
-        if (NumberOfLayers == 4) {
-            cl_context context = 0;
-            cl_command_queue commandQueue = 0;
-            cl_program program = 0;
-            cl_device_id device = 0;
-            cl_kernel kernel = 0;
-            cl_mem memObjects[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-            cl_int errNum;
-
-            float *desired;  // desired output value for each output neuron.
-            desired = (float *) malloc(NeuronsPerLayer[NumberOfLayers - 1] * sizeof(float));
-
-            float **deltas;  // deltas, used in back propagation, index1: Layer index2: Neuron
-            deltas = (float **) malloc(NumberOfLayers * sizeof(float *));
-            for (l = 0; l < NumberOfLayers; l++) {
-                deltas[l] = (float *)malloc(NeuronsPerLayer[l] * sizeof(float));
-            }
-
-            context = CTrainMLP_CreateContext();
-            if (context == NULL) {
-                cout << "unable to create context. Abort." << endl;
-                return 1;
-            }
-            commandQueue = CTrainMLP_CreateCommandQueue(context, &device);
-            if (commandQueue == NULL) {
-                cout << "Unable to create command queue. Abort." << endl;
-                return 1;
-            }
-            program = CTrainMLP_CreateProgram(context, device, "kernelonline.cl", nEvents, NumberOfLayers, nEpochs, totalNeurons);
-            cout << "batch learning on GPU" << endl;
-            kernel = clCreateKernel(program, "CTrainMLP_kernel", &errNum);
-            if (kernel == NULL) {
-                check_error(errNum);
-                std::cerr << "Failed to create kernel" << std::endl;
-                Cleanup(context, commandQueue, program, kernel, memObjects);
-                return 1;
-            }
-
-            memObjects[0] = clCreateBuffer(context, CL_MEM_READ_WRITE,
-                                           sizeof(int) * nEvents, eventClass, &errNum);
-            if (errNum != CL_SUCCESS) {
-                check_error(errNum);
-                Cleanup(context, commandQueue, program, kernel, memObjects);
-                exit(1);
-            }
-            memObjects[1] = clCreateBuffer(context, CL_MEM_READ_WRITE,
-                                           sizeof(double) * nEvents, eventWeights, &errNum);
-            if (errNum != CL_SUCCESS) {
-                check_error(errNum);
-                Cleanup(context, commandQueue, program, kernel, memObjects);
-                exit(1);
-            }
-            memObjects[2] = clCreateBuffer(context, CL_MEM_READ_WRITE,
-                                           sizeof(int) * (nEvents * nVars), eventValues, &errNum);
-            if (errNum != CL_SUCCESS) {
-                check_error(errNum);
-                Cleanup(context, commandQueue, program, kernel, memObjects);
-                exit(1);
-            }
-            memObjects[3] = clCreateBuffer(context, CL_MEM_READ_WRITE,
-                                           sizeof(double) * 1, &learnrate, &errNum);
-            if (errNum != CL_SUCCESS) {
-                check_error(errNum);
-                Cleanup(context, commandQueue, program, kernel, memObjects);
-                exit(1);
-            }
-            memObjects[4] = clCreateBuffer(context, CL_MEM_READ_WRITE,
-                                           sizeof(int) * 1, &nVars, &errNum);
-            if (errNum != CL_SUCCESS) {
-                check_error(errNum);
-                Cleanup(context, commandQueue, program, kernel, memObjects);
-                exit(1);
-            }
-            memObjects[5] = clCreateBuffer(context, CL_MEM_READ_WRITE,
-                                           sizeof(double) * totalNeurons * totalNeurons * NumberOfLayers, Synweights, &errNum);
-            if (errNum != CL_SUCCESS) {
-                check_error(errNum);
-                Cleanup(context, commandQueue, program, kernel, memObjects);
-                exit(1);
-            }
-
-            memObjects[6] = clCreateBuffer(context, CL_MEM_READ_WRITE,
-                                           sizeof(int) * NumberOfLayers, NeuronsPerLayer, &errNum);
-            if (errNum != CL_SUCCESS) {
-                check_error(errNum);
-                Cleanup(context, commandQueue, program, kernel, memObjects);
-                exit(1);
-            }
-            memObjects[7] = clCreateBuffer(context, CL_MEM_READ_WRITE,
-                                           sizeof(int) * 1, &NumberOfLayers, &errNum);
-            if (errNum != CL_SUCCESS) {
-                check_error(errNum);
-                Cleanup(context, commandQueue, program, kernel, memObjects);
-                exit(1);
-            }
-            memObjects[8] = clCreateBuffer(context, CL_MEM_READ_WRITE,
-                                           sizeof(double) * 1, &decayrate, &errNum);
-            if (errNum != CL_SUCCESS) {
-                check_error(errNum);
-                Cleanup(context, commandQueue, program, kernel, memObjects);
-                exit(1);
-            }
-
-            errNum = clSetKernelArg(kernel, 0, sizeof(cl_mem), &memObjects[0]);
-            check_error(errNum);
-            errNum = clSetKernelArg(kernel, 1, sizeof(cl_mem), &memObjects[1]);
-            check_error(errNum);
-            errNum = clSetKernelArg(kernel, 2, sizeof(cl_mem), &memObjects[2]);
-            check_error(errNum);
-            errNum = clSetKernelArg(kernel, 3, sizeof(cl_mem), &memObjects[3]);
-            check_error(errNum);
-            errNum = clSetKernelArg(kernel, 4, sizeof(int), &nVars);
-            check_error(errNum);
-            errNum = clSetKernelArg(kernel, 5, sizeof(cl_mem), &memObjects[5]);
-            check_error(errNum);
-            errNum = clSetKernelArg(kernel, 6, sizeof(cl_mem), &memObjects[6]);
-            check_error(errNum);
-            errNum = clSetKernelArg(kernel, 7, sizeof(cl_mem), &memObjects[7]);
-            check_error(errNum);
-            errNum = clSetKernelArg(kernel, 8, sizeof(cl_mem), &memObjects[8]);
-            if (errNum != CL_SUCCESS) {
-                check_error(errNum);
-                std::cerr << "Error setting kernel arguments." << std::endl;
-                Cleanup(context, commandQueue, program, kernel, memObjects);
-                return 1;
-            }
-            size_t globalWorkSize[1] = { nEvents };
-            size_t localWorkSize[1] = { 1 };
-            cout<<"calculate"<<endl;
-            errNum = clEnqueueNDRangeKernel(commandQueue, kernel, 1, NULL,
-                                    globalWorkSize, localWorkSize,
-                                    0, NULL, NULL);
-            check_error(errNum);
-            errNum =clFinish(commandQueue);
-            check_error(errNum);
-            errNum = clEnqueueReadBuffer(commandQueue, memObjects[0], CL_TRUE,
-                                 0, sizeof(int) * nEvents, eventClass,
-                                 0, NULL, NULL);
-            cout<<"read back"<<endl;
-            check_error(errNum);
-            Cleanup(context, commandQueue, program, kernel, memObjects);
-        } else {
-            cout << "Number of Layers must be 4" << endl;
-            exit(0);
+        if (NumberOfLayers==4){
+        cout << "online with opencl " << endl;
+        CTrainMLP_opencl(training, learnrate, nVars, nEpochs,
+                  nEvents, Synweights, NeuronsPerLayer,
+                  NumberOfLayers, bias, decayrate, 1.0, 0.0);
+        }
+        else{
+            cout << "online without opencl " << endl;
+        CTrainMLP(training, learnrate, nVars, nEpochs,
+                  nEvents, Synweights, NeuronsPerLayer,
+                  NumberOfLayers, bias, decayrate, 1.0, 0.0);
         }
     }
 

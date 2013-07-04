@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <CL/cl.h>
 #include <sstream>
+#include <string>
 
 
 
@@ -68,7 +69,8 @@ void CTrainMLP(CEvents *ev, double learnRate, int nVars, int nEpochs,
 
     double **deltas;  // deltas, used in back propagation, index1: Layer index2: Neuron
     deltas = (double **) malloc(NumberOfLayers * sizeof(double *));
-    for (l = 0; l < NumberOfLayers; l++) {
+    for (l = 0; l < NumberOfLayers; l++)
+    {
         deltas[l] = (double *)malloc(NeuronsPerLayer[l] * sizeof(double));
     }
 
@@ -77,41 +79,52 @@ void CTrainMLP(CEvents *ev, double learnRate, int nVars, int nEpochs,
     // allocate neurons
     double **Neurons;
     int totalNeurons = NeuronsPerLayer[0];
-    for (l = 1; l < NumberOfLayers; l++) {
+    for (l = 1; l < NumberOfLayers; l++)
+    {
         totalNeurons += NeuronsPerLayer[l];
     }
     Neurons = (double **)malloc(NumberOfLayers * sizeof(double *));
     Neurons[0] = (double *) malloc(totalNeurons * sizeof(double));
-    for (l = 1; l < NumberOfLayers; l++) {
+    for (l = 1; l < NumberOfLayers; l++)
+    {
         Neurons[l] = Neurons[l - 1] + NeuronsPerLayer[l - 1];
     }
 
     // set neurons of bias nodes
-    for (i = 0; i < NumberOfLayers - 1; i++) {
-        if (bias[i] != 0) {
+    for (i = 0; i < NumberOfLayers - 1; i++)
+    {
+        if (bias[i] != 0)
+        {
             Neurons[i][NeuronsPerLayer[i] - 1] = 1.0;
         }
     }
 
     // online learning
-    for (int nEp = 0; nEp < nEpochs; nEp++) {     //for each epoch
+    for (int nEp = 0; nEp < nEpochs; nEp++)       //for each epoch
+    {
 
-        for (int nEv = 0; nEv < nEvents; nEv++) {   //for each event
+        for (int nEv = 0; nEv < nEvents; nEv++)     //for each event
+        {
 
             //Initialization for each event
-            for (i = 0; i < NeuronsPerLayer[NumberOfLayers - 1]; i++) {
+            for (i = 0; i < NeuronsPerLayer[NumberOfLayers - 1]; i++)
+            {
                 //Set desired output to 1 if eventclass is the same
                 // as the index of the output neuron
-                if (ev->eventClass[nEv] == i) {
+                if (ev->eventClass[nEv] == i)
+                {
                     desired[i] = 1.0;
-                } else {
+                }
+                else
+                {
                     desired[i] = 0.0;
                 }
             }
 
             // aus eventValue bias-Knoten wieder raus und for-loop nur
             // bis < NeuronsPerLayer[0]-1
-            for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++) {
+            for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++)
+            {
                 //Use Eventvalues as output of the input layer to make
                 //the next step easier.
                 Neurons[0][i] = ev->eventValues[nEv][i];
@@ -119,16 +132,19 @@ void CTrainMLP(CEvents *ev, double learnRate, int nVars, int nEpochs,
 
             //forward propagation
 
-            //For each layer except Input and Output Layer.
-            for (l = 1; l < NumberOfLayers; l++) {
+            //For each layer except Input  Layer.
+            for (l = 1; l < NumberOfLayers; l++)
+            {
 
                 // For each neuron on the next layer except bias node
-                for (j = 0; j < NeuronsPerLayer[l] - bias[l]; j++) {
+                for (j = 0; j < NeuronsPerLayer[l] - bias[l]; j++)
+                {
 
                     // Calculate the neuron input
                     Neurons[l][j] = 0.0;
                     // For each input coming from the lower layer
-                    for (i = 0; i < NeuronsPerLayer[l - 1]; i++) {
+                    for (i = 0; i < NeuronsPerLayer[l - 1]; i++)
+                    {
                         // Calculate the neuron input
                         Neurons[l][j] += Neurons[l - 1][i] * Synweights[l - 1][i][j];
                     }
@@ -147,7 +163,8 @@ void CTrainMLP(CEvents *ev, double learnRate, int nVars, int nEpochs,
 
             // output layer
             l = NumberOfLayers - 1;
-            for (j = 0; j < NeuronsPerLayer[l]; j++) {
+            for (j = 0; j < NeuronsPerLayer[l]; j++)
+            {
                 // Calculate delta. Since the Output is linear, there is no need
                 // to calculate the derivate of the activation function
                 // here the deltas have to be multiplied with the weight of the event
@@ -156,12 +173,15 @@ void CTrainMLP(CEvents *ev, double learnRate, int nVars, int nEpochs,
             }
 
             //Beginning from last layer where the next layer is hiden layer
-            for (l = NumberOfLayers - 2; l >= 0; l--) {
+            for (l = NumberOfLayers - 2; l >= 0; l--)
+            {
                 //for every Neuron on the current Layer
-                for (j = 0; j < NeuronsPerLayer[l]; j++) {
+                for (j = 0; j < NeuronsPerLayer[l]; j++)
+                {
                     sumdeltas = 0.0;
                     //for every Neuron on the next higher Layer
-                    for (k = 0; k < NeuronsPerLayer[l + 1] - bias[l + 1]; k++) {
+                    for (k = 0; k < NeuronsPerLayer[l + 1] - bias[l + 1]; k++)
+                    {
                         //Calculate delta_k*w_jk to calculate the new deltas
                         sumdeltas += deltas[l + 1][k] * Synweights[l][j][k];
                     }
@@ -171,9 +191,12 @@ void CTrainMLP(CEvents *ev, double learnRate, int nVars, int nEpochs,
             }   // end loop NumberOfLayers
 
             //For all Layers, upate Synapse weight
-            for (l = 0; l < NumberOfLayers - 1; l++) {
-                for (j = 0; j < NeuronsPerLayer[l + 1] - bias[l + 1]; j++) {
-                    for (i = 0; i < NeuronsPerLayer[l]; i++) {
+            for (l = 0; l < NumberOfLayers - 1; l++)
+            {
+                for (j = 0; j < NeuronsPerLayer[l + 1] - bias[l + 1]; j++)
+                {
+                    for (i = 0; i < NeuronsPerLayer[l]; i++)
+                    {
                         Synweights[l][i][j] += -learnRate * Neurons[l][i] * deltas[l + 1][j];
                     }
                 }
@@ -183,10 +206,13 @@ void CTrainMLP(CEvents *ev, double learnRate, int nVars, int nEpochs,
 
         //reduce learnrate to get better minimum
         //check if we are in late epochs
-        if (nEp >= lateEpochs) {
+        if (nEp >= lateEpochs)
+        {
             // In order to lower the learning rate even more,
             learnRate *= (1.0 - sqrt(decayRate));
-        } else {
+        }
+        else
+        {
             learnRate *= (1.0 - decayRate);
         }
 
@@ -252,7 +278,8 @@ void CTrainMLP_b(CEvents *ev, double learnRate, int nVars, int nEpochs,
     double sumdeltas = 0.0; // Sum of delta_k*weight_jk used in back propagation
 
     int totalNeurons = NeuronsPerLayer[0];
-    for (l = 1; l < NumberOfLayers; l++) {
+    for (l = 1; l < NumberOfLayers; l++)
+    {
         totalNeurons += NeuronsPerLayer[l];
     }
     cout << "total number of neurons:" << totalNeurons << endl;
@@ -262,11 +289,14 @@ void CTrainMLP_b(CEvents *ev, double learnRate, int nVars, int nEpochs,
     double *** deltasEvents; // deltas, used in back propagation,
     // index1: Layer index2: Neuron per layer, index3: event
     deltasEvents = (double ** *) malloc(NumberOfLayers * sizeof(double **));
-    for (l = 0; l < NumberOfLayers; l++) {
+    for (l = 0; l < NumberOfLayers; l++)
+    {
         deltasEvents[l] =  (double **) malloc(NeuronsPerLayer[l] * sizeof(double *));
     }
-    for (l = 0; l < NumberOfLayers; l++) {
-        for (i = 0; i < NeuronsPerLayer[l]; i++) {
+    for (l = 0; l < NumberOfLayers; l++)
+    {
+        for (i = 0; i < NeuronsPerLayer[l]; i++)
+        {
             deltasEvents[l][i] = (double *) malloc(nEvents * sizeof(double));
         }
     }
@@ -274,29 +304,37 @@ void CTrainMLP_b(CEvents *ev, double learnRate, int nVars, int nEpochs,
     double *** neuronsEvents; // value of the neurons
     // index1: Layer, index2: Neuron per layer, index3: event
     neuronsEvents = (double ** *) malloc(NumberOfLayers * sizeof(double **));
-    for (l = 0; l < NumberOfLayers; l++) {
+    for (l = 0; l < NumberOfLayers; l++)
+    {
         neuronsEvents[l] =  (double **) malloc(NeuronsPerLayer[l] * sizeof(double *));
     }
-    for (l = 0; l < NumberOfLayers; l++) {
-        for (i = 0; i < NeuronsPerLayer[l]; i++) {
+    for (l = 0; l < NumberOfLayers; l++)
+    {
+        for (i = 0; i < NeuronsPerLayer[l]; i++)
+        {
             neuronsEvents[l][i] = (double *) malloc(nEvents * sizeof(double));
         }
     }
 
 
     // set neurons of bias nodes
-    for (i = 0; i < NumberOfLayers - 1; i++) {
-        if (bias[i] != 0) {
-            for (int nEv = 0; nEv < nEvents; nEv++) {
+    for (i = 0; i < NumberOfLayers - 1; i++)
+    {
+        if (bias[i] != 0)
+        {
+            for (int nEv = 0; nEv < nEvents; nEv++)
+            {
                 neuronsEvents[i][NeuronsPerLayer[i] - 1][nEv] = 1.0;
             }
         }
     }
 
     // initialization for each event the input layer for batch learning
-    for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++) {
+    for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++)
+    {
         //Use Eventvalues as output of the input layer to make the next step easier.
-        for (int nEv = 0; nEv < nEvents; nEv++) {
+        for (int nEv = 0; nEv < nEvents; nEv++)
+        {
             neuronsEvents[0][i][nEv] = ev->eventValues[nEv][i];
         }
     }
@@ -305,11 +343,16 @@ void CTrainMLP_b(CEvents *ev, double learnRate, int nVars, int nEpochs,
     int lastLayer   = NumberOfLayers - 1;
     int lastNeurons = NeuronsPerLayer[lastLayer];
     double desired[nEvents][lastNeurons];
-    for (int nEv = 0; nEv < nEvents; nEv++) {
-        for (i = 0; i < lastNeurons; i++) {
-            if (ev->eventClass[nEv] == i) {
+    for (int nEv = 0; nEv < nEvents; nEv++)
+    {
+        for (i = 0; i < lastNeurons; i++)
+        {
+            if (ev->eventClass[nEv] == i)
+            {
                 desired[nEv][i] = 1.0;
-            } else {
+            }
+            else
+            {
                 desired[nEv][i] = 0.0;
             }
         }
@@ -317,18 +360,22 @@ void CTrainMLP_b(CEvents *ev, double learnRate, int nVars, int nEpochs,
 
 
 
-    for (int nEp = 0; nEp < nEpochs; nEp++) {     //for each epoch
+    for (int nEp = 0; nEp < nEpochs; nEp++)       //for each epoch
+    {
 
         // batch learning
 
         //for all events do forward propagation
-        for (int nEv = 0; nEv < nEvents; nEv++) {   //for each event
+        for (int nEv = 0; nEv < nEvents; nEv++)     //for each event
+        {
 
             //For each layer except Input and Output Layer.
-            for (l = 1; l < NumberOfLayers - 1; l++) {
+            for (l = 1; l < NumberOfLayers - 1; l++)
+            {
 
                 // For each neuron on the next layer except bias node
-                for (j = 0; j < NeuronsPerLayer[l] - bias[l]; j++) {
+                for (j = 0; j < NeuronsPerLayer[l] - bias[l]; j++)
+                {
 
                     // Calculate the neuron input
                     neuronsEvents[l][j][nEv] = 0.0;
@@ -344,9 +391,11 @@ void CTrainMLP_b(CEvents *ev, double learnRate, int nVars, int nEpochs,
 
             // for the output layer, no activation funktion is applied
             l = NumberOfLayers - 1;
-            for (j = 0; j < NeuronsPerLayer[l] - bias[l]; j++) {
+            for (j = 0; j < NeuronsPerLayer[l] - bias[l]; j++)
+            {
                 neuronsEvents[l][j][nEv] = 0.0;
-                for (i = 0; i < NeuronsPerLayer[l - 1]; i++) {
+                for (i = 0; i < NeuronsPerLayer[l - 1]; i++)
+                {
                     neuronsEvents[l][j][nEv] += neuronsEvents[l - 1][i][nEv] * Synweights[l - 1][i][j];
                 }
             }
@@ -356,11 +405,13 @@ void CTrainMLP_b(CEvents *ev, double learnRate, int nVars, int nEpochs,
         // now, for all events do backward propagation
 
         // first compute all deltas
-        for (int nEv = 0; nEv < nEvents; nEv++) {   //for each event
+        for (int nEv = 0; nEv < nEvents; nEv++)     //for each event
+        {
 
             // output layer
             l = NumberOfLayers - 1;
-            for (j = 0; j < NeuronsPerLayer[l]; j++) {
+            for (j = 0; j < NeuronsPerLayer[l]; j++)
+            {
                 // Calculate delta. Since the Output is linear, there is no need
                 // to calculate the derivate of the activation function
                 // here the deltas have to be multiplied with the weight of the event
@@ -369,12 +420,15 @@ void CTrainMLP_b(CEvents *ev, double learnRate, int nVars, int nEpochs,
             }
 
             //Beginning from last layer where the next layer is hiden layer
-            for (l = NumberOfLayers - 2; l >= 0; l--) {
+            for (l = NumberOfLayers - 2; l >= 0; l--)
+            {
                 //for every Neuron on the current Layer
-                for (j = 0; j < NeuronsPerLayer[l]; j++) {
+                for (j = 0; j < NeuronsPerLayer[l]; j++)
+                {
                     sumdeltas = 0.0;
                     //for every Neuron on the next higher Layer
-                    for (k = 0; k < NeuronsPerLayer[l + 1] - bias[l + 1]; k++) {
+                    for (k = 0; k < NeuronsPerLayer[l + 1] - bias[l + 1]; k++)
+                    {
                         //Calculate delta_k*w_jk to calculate the new deltas
                         sumdeltas += deltasEvents[l + 1][k][nEv] * Synweights[l][j][k];
                     }
@@ -388,11 +442,15 @@ void CTrainMLP_b(CEvents *ev, double learnRate, int nVars, int nEpochs,
         // secondly update weights
 
         //For all Layers, upate Synapse weight
-        for (l = 0; l < NumberOfLayers - 1; l++) {
-            for (j = 0; j < NeuronsPerLayer[l + 1] - bias[l + 1]; j++) {
-                for (i = 0; i < NeuronsPerLayer[l]; i++) {
+        for (l = 0; l < NumberOfLayers - 1; l++)
+        {
+            for (j = 0; j < NeuronsPerLayer[l + 1] - bias[l + 1]; j++)
+            {
+                for (i = 0; i < NeuronsPerLayer[l]; i++)
+                {
                     sumdeltas = 0.0;
-                    for (int nEv = 0; nEv < nEvents; nEv++) { //for each event
+                    for (int nEv = 0; nEv < nEvents; nEv++)   //for each event
+                    {
                         sumdeltas += neuronsEvents[l][i][nEv] * deltasEvents[l + 1][j][nEv];
                     }
                     Synweights[l][i][j] += -learnRate * sumdeltas / (double)nEvents;
@@ -403,10 +461,13 @@ void CTrainMLP_b(CEvents *ev, double learnRate, int nVars, int nEpochs,
 
         //reduce learnrate to get better minimum
         //check if we are in late epochs
-        if (nEp >= lateEpochs) {
+        if (nEp >= lateEpochs)
+        {
             // In order to lower the learning rate even more,
             learnRate *= (1.0 - sqrt(decayRate));
-        } else {
+        }
+        else
+        {
             learnRate *= (1.0 - decayRate);
         }
 
@@ -458,7 +519,8 @@ void CTrainMLP_m(CEvents *ev,  double *** Synweights, double learnRate, double d
     double tmp;           // temporary storage for multiplications
 
     int totalNeurons = NeuronsPerLayer[0];
-    for (l = 1; l < NumberOfLayers; l++) {
+    for (l = 1; l < NumberOfLayers; l++)
+    {
         totalNeurons += NeuronsPerLayer[l];
     }
     cout << "total number of neurons:" << totalNeurons << endl;
@@ -467,11 +529,14 @@ void CTrainMLP_m(CEvents *ev,  double *** Synweights, double learnRate, double d
     double *** deltasEvents; // deltas, used in back propagation,
     // index 1: Layer, 2: Neuron per layer, 3: event
     deltasEvents = (double ** *) malloc(NumberOfLayers * sizeof(double **));
-    for (l = 0; l < NumberOfLayers; l++) {
+    for (l = 0; l < NumberOfLayers; l++)
+    {
         deltasEvents[l] =  (double **) malloc(NeuronsPerLayer[l] * sizeof(double *));
     }
-    for (l = 0; l < NumberOfLayers; l++) {
-        for (i = 0; i < NeuronsPerLayer[l]; i++) {
+    for (l = 0; l < NumberOfLayers; l++)
+    {
+        for (i = 0; i < NeuronsPerLayer[l]; i++)
+        {
             deltasEvents[l][i] = (double *) malloc(nEvents * sizeof(double));
         }
     }
@@ -479,27 +544,35 @@ void CTrainMLP_m(CEvents *ev,  double *** Synweights, double learnRate, double d
     double *** neuronsEvents; // value of the neurons
     // index 1: Layer, 2: Neuron per layer, 3: event
     neuronsEvents = (double ** *) malloc(NumberOfLayers * sizeof(double **));
-    for (l = 0; l < NumberOfLayers; l++) {
+    for (l = 0; l < NumberOfLayers; l++)
+    {
         neuronsEvents[l] =  (double **) malloc(NeuronsPerLayer[l] * sizeof(double *));
     }
-    for (l = 0; l < NumberOfLayers; l++) {
-        for (i = 0; i < NeuronsPerLayer[l]; i++) {
+    for (l = 0; l < NumberOfLayers; l++)
+    {
+        for (i = 0; i < NeuronsPerLayer[l]; i++)
+        {
             neuronsEvents[l][i] = (double *) malloc(nEvents * sizeof(double));
         }
     }
 
     // set neurons of bias nodes
-    for (i = 0; i < NumberOfLayers - 1; i++) {
-        if (bias[i] != 0) {
-            for (nEv = 0; nEv < nEvents; nEv++) {
+    for (i = 0; i < NumberOfLayers - 1; i++)
+    {
+        if (bias[i] != 0)
+        {
+            for (nEv = 0; nEv < nEvents; nEv++)
+            {
                 neuronsEvents[i][NeuronsPerLayer[i] - 1][nEv] = 1.0;
             }
         }
     }
 
     //Initialization for each event the input layer for batch learning
-    for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++) {
-        for (nEv = 0; nEv < nEvents; nEv++) {
+    for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++)
+    {
+        for (nEv = 0; nEv < nEvents; nEv++)
+        {
             neuronsEvents[0][i][nEv] = ev->eventValues[nEv][i];
         }
     }
@@ -508,11 +581,16 @@ void CTrainMLP_m(CEvents *ev,  double *** Synweights, double learnRate, double d
     int lastLayer   = NumberOfLayers - 1;
     int lastNeurons = NeuronsPerLayer[lastLayer];
     double desired[lastNeurons][nEvents];
-    for (i = 0; i < lastNeurons; i++) {
-        for (int nEv = 0; nEv < nEvents; nEv++) {
-            if (ev->eventClass[nEv] == i) {
+    for (i = 0; i < lastNeurons; i++)
+    {
+        for (int nEv = 0; nEv < nEvents; nEv++)
+        {
+            if (ev->eventClass[nEv] == i)
+            {
                 desired[i][nEv] = 1.0;
-            } else {
+            }
+            else
+            {
                 desired[i][nEv] = 0.0;
             }
         }
@@ -521,21 +599,27 @@ void CTrainMLP_m(CEvents *ev,  double *** Synweights, double learnRate, double d
     // number of loops for mixed batch - online learning
     int parts = nEvents / events;
 
-    for (int nEp = 0; nEp < nEpochs; nEp++) {         //for each epoch
+    for (int nEp = 0; nEp < nEpochs; nEp++)           //for each epoch
+    {
 
         // do mixed learning, i.e. learn in iparts batches of size events
         int nEv_start = nEv = 0;
         int nEv_stop = events;
-        for (int iparts = 0; iparts < parts; iparts++) {
+        for (int iparts = 0; iparts < parts; iparts++)
+        {
 
             //for one batch of events do forward propagation
             //here: calculate the output as f_act(Input) not for the output layer
-            for (l = 1; l < lastLayer; l++) {
-                for (j = 0; j < NeuronsPerLayer[l] - bias[l]; j++) {
-                    for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
+            for (l = 1; l < lastLayer; l++)
+            {
+                for (j = 0; j < NeuronsPerLayer[l] - bias[l]; j++)
+                {
+                    for (nEv = nEv_start; nEv < nEv_stop; nEv++)
+                    {
                         tmp = 0.0;
                         neuronsEvents[l][j][nEv] = 0.0;
-                        for (i = 0; i < NeuronsPerLayer[l - 1]; i++) {
+                        for (i = 0; i < NeuronsPerLayer[l - 1]; i++)
+                        {
                             tmp += Synweights[l - 1][i][j] * neuronsEvents[l - 1][i][nEv];
                         }
                         neuronsEvents[l][j][nEv] = FUNCTION(tmp);
@@ -544,10 +628,13 @@ void CTrainMLP_m(CEvents *ev,  double *** Synweights, double learnRate, double d
             }
 
             l = NumberOfLayers - 1;
-            for (j = 0; j < NeuronsPerLayer[l] - bias[l]; j++) {
-                for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
+            for (j = 0; j < NeuronsPerLayer[l] - bias[l]; j++)
+            {
+                for (nEv = nEv_start; nEv < nEv_stop; nEv++)
+                {
                     tmp = 0.0;
-                    for (i = 0; i < NeuronsPerLayer[l - 1]; i++) {
+                    for (i = 0; i < NeuronsPerLayer[l - 1]; i++)
+                    {
                         tmp += Synweights[l - 1][i][j] * neuronsEvents[l - 1][i][nEv];
 
                     }
@@ -559,21 +646,27 @@ void CTrainMLP_m(CEvents *ev,  double *** Synweights, double learnRate, double d
 
             // first compute all deltas
             // output layer
-            for (j = 0; j < NeuronsPerLayer[lastLayer]; j++) {
-                for ( nEv = nEv_start; nEv < nEv_stop; nEv++) {
+            for (j = 0; j < NeuronsPerLayer[lastLayer]; j++)
+            {
+                for ( nEv = nEv_start; nEv < nEv_stop; nEv++)
+                {
                     deltasEvents[lastLayer][j][nEv] = (neuronsEvents[lastLayer][j][nEv] -
                                                        desired[j][nEv]) * ev->eventWeights[nEv];
                 }
             }
 
             //Beginning from last layer where the next layer is hiden layer
-            for (l = NumberOfLayers - 2; l >= 0; l--) {
+            for (l = NumberOfLayers - 2; l >= 0; l--)
+            {
                 //for every Neuron on the current Layer
-                for (j = 0; j < NeuronsPerLayer[l]; j++) {
-                    for ( nEv = nEv_start; nEv < nEv_stop; nEv++) {
+                for (j = 0; j < NeuronsPerLayer[l]; j++)
+                {
+                    for ( nEv = nEv_start; nEv < nEv_stop; nEv++)
+                    {
                         sumdeltas = 0.0;
                         //for every Neuron on the next higher Layer
-                        for (k = 0; k < NeuronsPerLayer[l + 1] - bias[l + 1]; k++) {
+                        for (k = 0; k < NeuronsPerLayer[l + 1] - bias[l + 1]; k++)
+                        {
                             sumdeltas += Synweights[l][j][k] * deltasEvents[l + 1][k][nEv];
                         }
                         deltasEvents[l][j][nEv] = DERIVATE(neuronsEvents[l][j][nEv]) * sumdeltas;
@@ -584,11 +677,15 @@ void CTrainMLP_m(CEvents *ev,  double *** Synweights, double learnRate, double d
             // secondly update weights
 
             //For all Layers, upate Synapse weight
-            for (l = 0; l < NumberOfLayers - 1; l++) {
-                for (j = 0; j < NeuronsPerLayer[l + 1] - bias[l + 1]; j++) {
-                    for (i = 0; i < NeuronsPerLayer[l]; i++) {
+            for (l = 0; l < NumberOfLayers - 1; l++)
+            {
+                for (j = 0; j < NeuronsPerLayer[l + 1] - bias[l + 1]; j++)
+                {
+                    for (i = 0; i < NeuronsPerLayer[l]; i++)
+                    {
                         sumdeltas = 0.0;
-                        for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
+                        for (nEv = nEv_start; nEv < nEv_stop; nEv++)
+                        {
                             sumdeltas += neuronsEvents[l][i][nEv] * deltasEvents[l + 1][j][nEv];
                         }
                         Synweights[l][i][j] += -learnRate * sumdeltas / (double)events;
@@ -603,10 +700,13 @@ void CTrainMLP_m(CEvents *ev,  double *** Synweights, double learnRate, double d
 
         //reduce learnrate to get better minimum
         //check if we are in late epochs
-        if (nEp >= lateEpochs) {
+        if (nEp >= lateEpochs)
+        {
             // In order to lower the learning rate even more,
             learnRate *= (1.0 - sqrt(decayRate));
-        } else {
+        }
+        else
+        {
             learnRate *= (1.0 - decayRate);
         }
 
@@ -651,10 +751,13 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
 {
 
 #ifdef BLAS
-    if (nEvents != events) {
+    if (nEvents != events)
+    {
         printf("blas routines are only in bach mode implemented, i.e. nEvents= events\n");
         exit(1);
-    } else {
+    }
+    else
+    {
         printf("running with blas routines\n");
     }
 #else
@@ -678,30 +781,40 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
     double neurons2[NeuronsPerLayer[2]][nEvents];
     double neurons3[NeuronsPerLayer[3]][nEvents];
 
-    if (bias[0] != 0) {
-        for (nEv = 0; nEv < nEvents; nEv++) {
+    if (bias[0] != 0)
+    {
+        for (nEv = 0; nEv < nEvents; nEv++)
+        {
             neurons0[NeuronsPerLayer[0] - 1][nEv] = 1.0;
         }
     }
-    if (bias[1] != 0) {
-        for (nEv = 0; nEv < nEvents; nEv++) {
+    if (bias[1] != 0)
+    {
+        for (nEv = 0; nEv < nEvents; nEv++)
+        {
             neurons1[NeuronsPerLayer[1] - 1][nEv] = 1.0;
         }
     }
-    if (bias[2] != 0) {
-        for (nEv = 0; nEv < nEvents; nEv++) {
+    if (bias[2] != 0)
+    {
+        for (nEv = 0; nEv < nEvents; nEv++)
+        {
             neurons2[NeuronsPerLayer[2] - 1][nEv] = 1.0;
         }
     }
-    if (bias[3] != 0) {
-        for (nEv = 0; nEv < nEvents; nEv++) {
+    if (bias[3] != 0)
+    {
+        for (nEv = 0; nEv < nEvents; nEv++)
+        {
             neurons3[NeuronsPerLayer[3] - 1][nEv] = 1.0;
         }
     }
 
     //Initialization for each event the input layer for batch learning
-    for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++) {
-        for (nEv = 0; nEv < nEvents; nEv++) {
+    for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++)
+    {
+        for (nEv = 0; nEv < nEvents; nEv++)
+        {
             neurons0[i][nEv] = ev->eventValues[nEv][i];
         }
     }
@@ -710,11 +823,16 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
     int lastLayer   = NumberOfLayers - 1;
     int lastNeurons = NeuronsPerLayer[lastLayer];
     double desired[lastNeurons][nEvents];
-    for (i = 0; i < lastNeurons; i++) {
-        for (int nEv = 0; nEv < nEvents; nEv++) {
-            if (ev->eventClass[nEv] == i) {
+    for (i = 0; i < lastNeurons; i++)
+    {
+        for (int nEv = 0; nEv < nEvents; nEv++)
+        {
+            if (ev->eventClass[nEv] == i)
+            {
                 desired[i][nEv] = 1.0;
-            } else {
+            }
+            else
+            {
                 desired[i][nEv] = 0.0;
             }
         }
@@ -743,12 +861,14 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
     // number of loops for mixed batch - online learning
     int parts = nEvents / events;
 
-    for (int nEp = 0; nEp < nEpochs; nEp++) {         //for each epoch
+    for (int nEp = 0; nEp < nEpochs; nEp++)           //for each epoch
+    {
 
         // do mixed learning, i.e. learn in iparts batches of size events
         int nEv_start = nEv = 0;
         int nEv_stop = events;
-        for (int iparts = 0; iparts < parts; iparts++) {
+        for (int iparts = 0; iparts < parts; iparts++)
+        {
 
             //for one batch of events do forward propagation
             //here: calculate the output as f_act(Input) not for the output layer
@@ -761,8 +881,10 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
             cblas_dgemm (CblasRowMajor, CblasTrans, CblasNoTrans,
                          m, n, k, 1.0, synapses0[0], m, neurons0[0], n,
                          0.0, neurons1[0], n);
-            for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++) {
-                for ( nEv = nEv_start; nEv < nEv_stop; nEv++) {
+            for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++)
+            {
+                for ( nEv = nEv_start; nEv < nEv_stop; nEv++)
+                {
                     neurons1[j][nEv] = FUNCTION(neurons1[j][nEv]);
                 }
             }
@@ -771,8 +893,10 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
             cblas_dgemm (CblasRowMajor, CblasTrans, CblasNoTrans,
                          m, n, k, 1.0, synapses1[0], m, neurons1[0], n,
                          0.0, neurons2[0], n);
-            for (j = 0; j < NeuronsPerLayer[2] - bias[2]; j++) {
-                for ( nEv = nEv_start; nEv < nEv_stop; nEv++) {
+            for (j = 0; j < NeuronsPerLayer[2] - bias[2]; j++)
+            {
+                for ( nEv = nEv_start; nEv < nEv_stop; nEv++)
+                {
                     neurons2[j][nEv] = FUNCTION(neurons2[j][nEv]);
                 }
             }
@@ -783,28 +907,37 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
                          0.0, neurons3[0], n);
 #else
 
-            for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++) {
-                for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
+            for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++)
+            {
+                for (nEv = nEv_start; nEv < nEv_stop; nEv++)
+                {
                     tmp = 0.0;
-                    for (i = 0; i < NeuronsPerLayer[0]; i++) {
+                    for (i = 0; i < NeuronsPerLayer[0]; i++)
+                    {
                         tmp += synapses0[i][j] * neurons0[i][nEv];
                     }
                     neurons1[j][nEv] = FUNCTION(tmp);
                 }
             }
-            for (j = 0; j < NeuronsPerLayer[2] - bias[2]; j++) {
-                for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
+            for (j = 0; j < NeuronsPerLayer[2] - bias[2]; j++)
+            {
+                for (nEv = nEv_start; nEv < nEv_stop; nEv++)
+                {
                     tmp = 0.0;
-                    for (i = 0; i < NeuronsPerLayer[1]; i++) {
+                    for (i = 0; i < NeuronsPerLayer[1]; i++)
+                    {
                         tmp += synapses1[i][j] * neurons1[i][nEv];
                     }
                     neurons2[j][nEv] = FUNCTION(tmp);
                 }
             }
-            for (j = 0; j < NeuronsPerLayer[3] - bias[3]; j++) {
-                for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
+            for (j = 0; j < NeuronsPerLayer[3] - bias[3]; j++)
+            {
+                for (nEv = nEv_start; nEv < nEv_stop; nEv++)
+                {
                     tmp = 0.0;
-                    for (i = 0; i < NeuronsPerLayer[2]; i++) {
+                    for (i = 0; i < NeuronsPerLayer[2]; i++)
+                    {
                         tmp += synapses2[i][j] * neurons2[i][nEv];
 
                     }
@@ -817,8 +950,10 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
 
             // first compute all deltas
             // output layer
-            for (j = 0; j < lastNeurons; j++) {
-                for ( nEv = nEv_start; nEv < nEv_stop; nEv++) {
+            for (j = 0; j < lastNeurons; j++)
+            {
+                for ( nEv = nEv_start; nEv < nEv_stop; nEv++)
+                {
                     deltas3[j][nEv] = (neurons3[j][nEv] - desired[j][nEv]) * ev->eventWeights[nEv];
                 }
             }
@@ -834,8 +969,10 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
             cblas_dgemm (CblasRowMajor, CblasNoTrans, CblasNoTrans,
                          m, events, k, 1.0, synapses2[0], k, deltas3[0], events,
                          0.0, deltas2[0], events);
-            for (j = 0; j < NeuronsPerLayer[1]; j++) {
-                for ( nEv = nEv_start; nEv < nEv_stop; nEv++) {
+            for (j = 0; j < NeuronsPerLayer[1]; j++)
+            {
+                for ( nEv = nEv_start; nEv < nEv_stop; nEv++)
+                {
                     deltas2[j][nEv] *= DERIVATE(neurons2[j][nEv]);
                 }
             }
@@ -845,27 +982,35 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
             cblas_dgemm (CblasRowMajor, CblasNoTrans, CblasNoTrans,
                          m, events, k, 1.0, synapses1[0], k, deltas2[0], events,
                          0.0, deltas1[0], events);
-            for (j = 0; j < NeuronsPerLayer[1]; j++) {
-                for ( nEv = nEv_start; nEv < nEv_stop; nEv++) {
+            for (j = 0; j < NeuronsPerLayer[1]; j++)
+            {
+                for ( nEv = nEv_start; nEv < nEv_stop; nEv++)
+                {
                     deltas1[j][nEv] *= DERIVATE(neurons1[j][nEv]);
                 }
             }
 #else
 
 
-            for (j = 0; j < NeuronsPerLayer[2]; j++) {
-                for ( nEv = nEv_start; nEv < nEv_stop; nEv++) {
+            for (j = 0; j < NeuronsPerLayer[2]; j++)
+            {
+                for ( nEv = nEv_start; nEv < nEv_stop; nEv++)
+                {
                     sumdeltas = 0.0;
-                    for (k = 0; k < NeuronsPerLayer[3] - bias[3]; k++) {
+                    for (k = 0; k < NeuronsPerLayer[3] - bias[3]; k++)
+                    {
                         sumdeltas += synapses2[j][k] * deltas3[k][nEv];
                     }
                     deltas2[j][nEv] = DERIVATE(neurons2[j][nEv]) * sumdeltas;
                 }
             }
-            for (j = 0; j < NeuronsPerLayer[1]; j++) {
-                for ( nEv = nEv_start; nEv < nEv_stop; nEv++) {
+            for (j = 0; j < NeuronsPerLayer[1]; j++)
+            {
+                for ( nEv = nEv_start; nEv < nEv_stop; nEv++)
+                {
                     sumdeltas = 0.0;
-                    for (k = 0; k < NeuronsPerLayer[2] - bias[2]; k++) {
+                    for (k = 0; k < NeuronsPerLayer[2] - bias[2]; k++)
+                    {
                         sumdeltas += synapses1[j][k] * deltas2[k][nEv];
                     }
                     deltas1[j][nEv] = DERIVATE(neurons1[j][nEv]) * sumdeltas;
@@ -899,28 +1044,37 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
                          1.0, synapses2[0], n);
 #else
 
-            for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++) {
-                for (i = 0; i < NeuronsPerLayer[0]; i++) {
+            for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++)
+            {
+                for (i = 0; i < NeuronsPerLayer[0]; i++)
+                {
                     sumdeltas = 0.0;
-                    for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
+                    for (nEv = nEv_start; nEv < nEv_stop; nEv++)
+                    {
                         sumdeltas += neurons0[i][nEv] * deltas1[j][nEv];
                     }
                     synapses0[i][j] += rate * sumdeltas;
                 }
             }
-            for (j = 0; j < NeuronsPerLayer[2] - bias[2]; j++) {
-                for (i = 0; i < NeuronsPerLayer[1]; i++) {
+            for (j = 0; j < NeuronsPerLayer[2] - bias[2]; j++)
+            {
+                for (i = 0; i < NeuronsPerLayer[1]; i++)
+                {
                     sumdeltas = 0.0;
-                    for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
+                    for (nEv = nEv_start; nEv < nEv_stop; nEv++)
+                    {
                         sumdeltas += neurons1[i][nEv] * deltas2[j][nEv];
                     }
                     synapses1[i][j] += rate * sumdeltas;
                 }
             }
-            for (j = 0; j < NeuronsPerLayer[3] - bias[3]; j++) {
-                for (i = 0; i < NeuronsPerLayer[2]; i++) {
+            for (j = 0; j < NeuronsPerLayer[3] - bias[3]; j++)
+            {
+                for (i = 0; i < NeuronsPerLayer[2]; i++)
+                {
                     sumdeltas = 0.0;
-                    for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
+                    for (nEv = nEv_start; nEv < nEv_stop; nEv++)
+                    {
                         sumdeltas += neurons2[i][nEv] * deltas3[j][nEv];
                     }
                     synapses2[i][j] += rate * sumdeltas;
@@ -936,10 +1090,13 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
 
         //reduce learnrate to get better minimum
         //check if we are in late epochs
-        if (nEp >= lateEpochs) {
+        if (nEp >= lateEpochs)
+        {
             // In order to lower the learning rate even more,
             learnRate *= (1.0 - sqrt(decayRate));
-        } else {
+        }
+        else
+        {
             learnRate *= (1.0 - decayRate);
         }
 
@@ -998,17 +1155,21 @@ void CTrainMLP_testing(CEvents *ev, int nEpochs, int nEvents, double *** Synweig
     int l, i, j; //indices in for loops
 
     // set neurons of bias nodes
-    for (i = 0; i < NumberOfLayers - 1; i++) {
-        if (bias[i] != 0) {
+    for (i = 0; i < NumberOfLayers - 1; i++)
+    {
+        if (bias[i] != 0)
+        {
             Neurons[i][NeuronsPerLayer[i] - 1] = 1.0;
         }
     }
 
     //for each event
-    for (int nEv = 0; nEv < nEvents; nEv++) {
+    for (int nEv = 0; nEv < nEvents; nEv++)
+    {
 
         // aus eventValue bias-Knoten wieder raus und for-loop nur bis < NeuronsPerLayer[0]-1
-        for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++) {
+        for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++)
+        {
             //Use Eventvalues as output of the input layer to make the next step easier.
             Neurons[0][i] = ev->eventValues[nEv][i];
         }
@@ -1016,12 +1177,15 @@ void CTrainMLP_testing(CEvents *ev, int nEpochs, int nEvents, double *** Synweig
         //forward propagation
 
         //For each layer except Input and Output Layer.
-        for (l = 1; l < NumberOfLayers; l++) {
+        for (l = 1; l < NumberOfLayers; l++)
+        {
             //For each neuron on the next layer except bias node
-            for (j = 0; j < NeuronsPerLayer[l] - bias[l]; j++) {
+            for (j = 0; j < NeuronsPerLayer[l] - bias[l]; j++)
+            {
                 Neurons[l][j] = 0.0;
                 //For each input coming from the lower layer
-                for (i = 0; i < NeuronsPerLayer[l - 1]; i++) {
+                for (i = 0; i < NeuronsPerLayer[l - 1]; i++)
+                {
                     //Calculate the neuron input
                     Neurons[l][j] += Neurons[l - 1][i] * Synweights[l - 1][i][j];
                 }
@@ -1034,10 +1198,509 @@ void CTrainMLP_testing(CEvents *ev, int nEpochs, int nEvents, double *** Synweig
                     Neurons[l][j] = FUNCTION(Neurons[l][j]);
             }
         }
-        for (i = 0; i < NeuronsPerLayer[NumberOfLayers - 1]; i++) {
+        for (i = 0; i < NeuronsPerLayer[NumberOfLayers - 1]; i++)
+        {
             testout[nEv][i] = Neurons[NumberOfLayers - 1][i];
         }
     }
+    return;
+}
+
+
+void CTrainMLP_opencl(CEvents *ev, double learnRate, int nVars, int nEpochs,
+                      int nEvents, double *** Synweights,
+                      int *NeuronsPerLayer, int NumberOfLayers, int *bias,
+                      double decayRate, double max, double min)
+{
+    cl_int errNum;
+    int l, i, j, k;       //indices in for loops
+    int lateEpochs = (int)(nEpochs * 0.95) - 1; // taken from TMVA for better learning
+
+    double sumdeltas = 0.0; // Sum of delta_k*weight_jk used in back propagation
+
+    //Create Vector of desired Values for back propagation
+    double *desired;  // desired output value for each output neuron.
+    desired = (double *) malloc(NeuronsPerLayer[NumberOfLayers - 1] * sizeof(double));
+
+    double **deltas;  // deltas, used in back propagation, index1: Layer index2: Neuron
+    deltas = (double **) malloc(NumberOfLayers * sizeof(double *));
+    for (l = 0; l < NumberOfLayers; l++)
+    {
+        deltas[l] = (double *)malloc(NeuronsPerLayer[l] * sizeof(double));
+    }
+
+    cout << "function CTrainMLP" << endl;
+    double deltas1[NeuronsPerLayer[1]];
+    double deltas2[NeuronsPerLayer[2]];
+    double deltas3[NeuronsPerLayer[3]];
+
+    double neurons0[NeuronsPerLayer[0]];
+    double neurons1[NeuronsPerLayer[1]];
+    double neurons2[NeuronsPerLayer[2]];
+    double neurons3[NeuronsPerLayer[3]];
+
+    //transporniert
+    double synapses0[NeuronsPerLayer[1] - bias[1]][NeuronsPerLayer[0]];
+    double synapses1[NeuronsPerLayer[2] - bias[2]][NeuronsPerLayer[1]];
+    double synapses2[NeuronsPerLayer[3] - bias[3]][NeuronsPerLayer[2]];
+
+
+    // allocate neurons
+    double **Neurons;
+    int totalNeurons = NeuronsPerLayer[0];
+    for (l = 1; l < NumberOfLayers; l++)
+    {
+        totalNeurons += NeuronsPerLayer[l];
+    }
+    Neurons = (double **)malloc(NumberOfLayers * sizeof(double *));
+    Neurons[0] = (double *) malloc(totalNeurons * sizeof(double));
+    for (l = 1; l < NumberOfLayers; l++)
+    {
+        Neurons[l] = Neurons[l - 1] + NeuronsPerLayer[l - 1];
+    }
+
+    // set neurons of bias nodes
+    for (i = 0; i < NumberOfLayers - 1; i++)
+    {
+        if (bias[i] != 0)
+        {
+            Neurons[i][NeuronsPerLayer[i] - 1] = 1.0;
+        }
+    }
+
+    cl_context Context;
+    cl_device_id device;
+    cl_command_queue CommandQueue;
+    Context = CTrainMLP_CreateContext();
+    CommandQueue = CTrainMLP_CreateCommandQueue(Context, &device);
+    ostringstream ss;
+    int maxlayer = 0;
+    for ( i = 0; i < NumberOfLayers; i++)
+    {
+        if (maxlayer < NeuronsPerLayer[i])
+            maxlayer = NeuronsPerLayer[i];
+    }
+
+    ss << "#define LAYER " << maxlayer << endl;
+    ss << "#define BIAS " << maxlayer - 1 << endl;
+
+
+    cl_program program = CTrainMLP_CreateProgram(Context, device, "kernelonline.cl", ss.str());
+    cout << "create program" << endl;
+    cl_kernel kernel_tanh = clCreateKernel(program,
+                                           "CTrainMLP_forward_tanh", &errNum);
+    cout << "create kernel tanh" << endl;
+    if (errNum != CL_SUCCESS)
+    {
+        check_error(errNum);
+        exit(0);
+    }
+    cl_kernel kernel_linear = clCreateKernel(program,
+                              "CTrainMLP_forward_linear", &errNum);
+    cout << "create kernel linear" << endl;
+    if (errNum != CL_SUCCESS)
+    {
+        check_error(errNum);
+        exit(0);
+    }
+
+    // online learning
+    for (int nEp = 0; nEp < nEpochs; nEp++)       //for each epoch
+    {
+
+        for (int nEv = 0; nEv < nEvents; nEv++)     //for each event
+        {
+
+            //Initialization for each event
+            for (i = 0; i < NeuronsPerLayer[NumberOfLayers - 1]; i++)
+            {
+                //Set desired output to 1 if eventclass is the same
+                // as the index of the output neuron
+                if (ev->eventClass[nEv] == i)
+                {
+                    desired[i] = 1.0;
+                }
+                else
+                {
+                    desired[i] = 0.0;
+                }
+            }
+
+            // aus eventValue bias-Knoten wieder raus und for-loop nur
+            // bis < NeuronsPerLayer[0]-1
+            for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++)
+            {
+                //Use Eventvalues as output of the input layer to make
+                //the next step easier.
+                Neurons[0][i] = ev->eventValues[nEv][i];
+            }
+
+            //forward propagation
+
+            for (i = 0; i < NeuronsPerLayer[0]; i++)
+                for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++)
+                    synapses0[j][i] = Synweights[0][i][j];
+            
+            for (i = 0; i < NeuronsPerLayer[1]; i++)
+                for (j = 0; j < NeuronsPerLayer[2] - bias[2]; j++)
+                    synapses1[j][i] = Synweights[1][i][j];
+            
+            for (i = 0; i < NeuronsPerLayer[2]; i++)
+                for (j = 0; j < NeuronsPerLayer[3] - bias[3]; j++)
+                    synapses2[j][i] = Synweights[2][i][j];
+
+
+
+            for (i = 0; i < NeuronsPerLayer[0]; i++)
+                neurons0[i] = Neurons[0][i];
+
+
+
+
+                cl_mem memNeuronsin, memNeuronsout, memWeights, memUplayer,memDownlayer;
+                int uplayer;
+                int downlayer;
+                size_t localWorkSize[1] = {64};
+                size_t globalWorkSize[1] = {64};
+
+                memNeuronsout = clCreateBuffer(Context,
+                                               CL_MEM_READ_WRITE,
+                                               sizeof(double) * NeuronsPerLayer[1], NULL, &errNum);
+                memNeuronsin = clCreateBuffer(Context,
+                                              CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                              sizeof(double) * NeuronsPerLayer[0], neurons0, &errNum);
+                memWeights = clCreateBuffer(Context,
+                                            CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                            sizeof(double) * NeuronsPerLayer[0] * (NeuronsPerLayer[1] - bias[1]), synapses0[0], &errNum);
+                uplayer = NeuronsPerLayer[1] - bias[1];
+                memUplayer = clCreateBuffer(Context,
+                                             CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                             sizeof(int) * 1, &uplayer, &errNum);
+                downlayer = NeuronsPerLayer[0];
+                memDownlayer = clCreateBuffer(Context,
+                                             CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                             sizeof(int) * 1, &downlayer, &errNum);
+                errNum = clSetKernelArg(kernel_tanh, 0,
+                                        sizeof(cl_mem), (void *)&memNeuronsin);
+                errNum |= clSetKernelArg(kernel_tanh, 1,
+                                         sizeof(cl_mem), (void *)&memWeights);
+                errNum |= clSetKernelArg(kernel_tanh, 2,
+                                         sizeof(cl_mem), (void *)&memNeuronsout);
+                errNum |= clSetKernelArg(kernel_tanh, 3,
+                                         sizeof(cl_mem), (void *)&memUplayer);
+                errNum |= clSetKernelArg(kernel_tanh, 4,
+                                         sizeof(cl_mem), (void *)&memDownlayer);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"set kernel arguments"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+                errNum = clEnqueueNDRangeKernel(CommandQueue,
+                                                kernel_tanh, 1, NULL, globalWorkSize,
+                                                localWorkSize, 0, NULL, NULL);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"start kernel"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+                errNum=clFinish(CommandQueue);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"wait to calculate"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+                errNum = clEnqueueReadBuffer(CommandQueue, 
+                    memNeuronsout, CL_TRUE, 0, sizeof(double)*NeuronsPerLayer[1], 
+                    neurons1, 0, NULL, NULL);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"Read buffer back"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+                errNum=clFinish(CommandQueue);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"wait to calculate"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+
+             
+                clReleaseMemObject(memNeuronsin);
+                clReleaseMemObject(memNeuronsout);
+                clReleaseMemObject(memWeights);
+                clReleaseMemObject(memUplayer);
+                clReleaseMemObject(memDownlayer);
+                neurons1[NeuronsPerLayer[1]-1]=1.0;
+                
+
+                memNeuronsout = clCreateBuffer(Context,
+                                               CL_MEM_READ_WRITE,
+                                               sizeof(double) * NeuronsPerLayer[2], NULL, &errNum);
+                memNeuronsin = clCreateBuffer(Context,
+                                              CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                              sizeof(double) * NeuronsPerLayer[1], neurons1, &errNum);
+                memWeights = clCreateBuffer(Context,
+                                            CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                            sizeof(double) * NeuronsPerLayer[1] * (NeuronsPerLayer[2] - bias[2]), synapses1[0], &errNum);
+                uplayer = NeuronsPerLayer[2] - bias[2];
+                memUplayer = clCreateBuffer(Context,
+                                             CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                             sizeof(int) * 1, &uplayer, &errNum);
+                downlayer = NeuronsPerLayer[1];
+                memDownlayer = clCreateBuffer(Context,
+                                             CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                             sizeof(int) * 1, &downlayer, &errNum);
+                errNum = clSetKernelArg(kernel_tanh, 0,
+                                        sizeof(cl_mem), (void *)&memNeuronsin);
+                errNum |= clSetKernelArg(kernel_tanh, 1,
+                                         sizeof(cl_mem), (void *)&memWeights);
+                errNum |= clSetKernelArg(kernel_tanh, 2,
+                                         sizeof(cl_mem), (void *)&memNeuronsout);
+                errNum |= clSetKernelArg(kernel_tanh, 3,
+                                         sizeof(cl_mem), (void *)&memUplayer);
+                errNum |= clSetKernelArg(kernel_tanh, 4,
+                                         sizeof(cl_mem), (void *)&memDownlayer);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"set kernel arguments"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+                errNum = clEnqueueNDRangeKernel(CommandQueue,
+                                                kernel_tanh, 1, NULL, globalWorkSize,
+                                                localWorkSize, 0, NULL, NULL);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"start kernel"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+                errNum=clFinish(CommandQueue);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"wait to calculate"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+                errNum = clEnqueueReadBuffer(CommandQueue, 
+                    memNeuronsout, CL_TRUE, 0, sizeof(double)*NeuronsPerLayer[2], 
+                    neurons2, 0, NULL, NULL);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"Read buffer back"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+                errNum=clFinish(CommandQueue);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"wait to calculate"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+
+                clReleaseMemObject(memNeuronsin);
+                clReleaseMemObject(memNeuronsout);
+                clReleaseMemObject(memWeights);
+                clReleaseMemObject(memUplayer);
+                clReleaseMemObject(memDownlayer);
+
+                neurons2[NeuronsPerLayer[2]-1]=1.0;
+                memNeuronsout = clCreateBuffer(Context,
+                                               CL_MEM_READ_WRITE,
+                                               sizeof(double) * NeuronsPerLayer[3], NULL, &errNum);
+                memNeuronsin = clCreateBuffer(Context,
+                                              CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                              sizeof(double) * NeuronsPerLayer[2], neurons2, &errNum);
+                memWeights = clCreateBuffer(Context,
+                                            CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                            sizeof(double) * NeuronsPerLayer[2] * (NeuronsPerLayer[3] - bias[3]), synapses2[0], &errNum);
+                uplayer = NeuronsPerLayer[3] - bias[3];
+                memUplayer = clCreateBuffer(Context,
+                                             CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                             sizeof(int) * 1, &uplayer, &errNum);
+                downlayer = NeuronsPerLayer[2];
+                memDownlayer = clCreateBuffer(Context,
+                                             CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                             sizeof(int) * 1, &downlayer, &errNum);
+                errNum = clSetKernelArg(kernel_linear, 0,
+                                        sizeof(cl_mem), (void *)&memNeuronsin);
+                errNum |= clSetKernelArg(kernel_linear, 1,
+                                         sizeof(cl_mem), (void *)&memWeights);
+                errNum |= clSetKernelArg(kernel_linear, 2,
+                                         sizeof(cl_mem), (void *)&memNeuronsout);
+                errNum |= clSetKernelArg(kernel_linear, 3,
+                                         sizeof(cl_mem), (void *)&memUplayer);
+                errNum |= clSetKernelArg(kernel_linear, 4,
+                                         sizeof(cl_mem), (void *)&memDownlayer);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"set kernel arguments"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+                errNum = clEnqueueNDRangeKernel(CommandQueue,
+                                                kernel_linear, 1, NULL, globalWorkSize,
+                                                localWorkSize, 0, NULL, NULL);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"start kernel"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+                errNum=clFinish(CommandQueue);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"wait to calculate"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+                errNum = clEnqueueReadBuffer(CommandQueue, 
+                    memNeuronsout, CL_TRUE, 0, sizeof(double)*NeuronsPerLayer[3], 
+                    neurons3, 0, NULL, NULL);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"Read buffer back"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+                errNum=clFinish(CommandQueue);
+                if(errNum!=CL_SUCCESS){
+                    cout<<"wait to calculate"<<endl;
+                    check_error(errNum);
+                    exit(0);
+                }
+
+
+                clReleaseMemObject(memNeuronsin);
+                clReleaseMemObject(memNeuronsout);
+                clReleaseMemObject(memWeights);
+                clReleaseMemObject(memUplayer);
+                clReleaseMemObject(memDownlayer);
+                
+                
+ 
+                
+                
+
+
+            //For each layer except Input and Output Layer.
+            
+                /*
+                // For each neuron on the next layer except bias node
+                for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++) { //LOOPSIZE
+                    // Calculate the neuron input
+                    Neurons[j] = 0.0;
+                    // For each input coming from the lower layer
+                    for (i = 0; i < NeuronsPerLayer[0]; i++) {
+                        // Calculate the neuron input
+                        Neurons[j] += Neurons[i] * Synweights[i][j];
+                    }
+                    // decide if current layer is Output
+                    if (l == NumberOfLayers - 1)
+                        continue;
+                    else
+                        //Calculate the output as f_act(Input)
+                        Neurons[l][j] = FUNCTION(Neurons[j]);
+                }
+            */
+
+
+            for (i = 0; i < NeuronsPerLayer[1] - bias[1]; i++)
+                Neurons[1][i] = neurons1[i];
+            for (i = 0; i < NeuronsPerLayer[2] - bias[2]; i++)
+                Neurons[2][i] = neurons2[i];
+            for (i = 0; i < NeuronsPerLayer[3] - bias[3]; i++)
+               Neurons[3][i] = neurons3[i];
+
+
+
+
+
+
+            
+
+            /*for (l = 3; l < NumberOfLayers; l++)
+            {
+                // For each neuron on the next layer except bias node
+                for (j = 0; j < NeuronsPerLayer[l] - bias[l]; j++)
+                {
+                    // Calculate the neuron input
+                    Neurons[l][j] = 0.0;
+                    // For each input coming from the lower layer
+                    for (i = 0; i < NeuronsPerLayer[l - 1]; i++)
+                    {
+                        // Calculate the neuron input
+                        Neurons[l][j] += Neurons[l - 1][i] * Synweights[l - 1][i][j];
+                    }
+                    // decide if current layer is Output
+                    if (l == NumberOfLayers - 1)
+                        continue;
+                    else
+                        //Calculate the output as f_act(Input)
+                        Neurons[l][j] = FUNCTION(Neurons[l][j]);
+                        if(l==2)
+                            cout<<Neurons[l][j]<<endl;
+                }
+            }*/
+
+
+            // backward
+
+            // output layer
+            l = NumberOfLayers - 1;
+            for (j = 0; j < NeuronsPerLayer[l]; j++)
+            {
+                // Calculate delta. Since the Output is linear, there is no need
+                // to calculate the derivate of the activation function
+                // here the deltas have to be multiplied with the weight of the event
+                deltas[l][j] = Neurons[l][j] - desired[j];
+                deltas[l][j] *= ev->eventWeights[nEv];
+            }
+
+            //Beginning from last layer where the next layer is hiden layer
+            for (l = NumberOfLayers - 2; l >= 0; l--)
+            {
+                //for every Neuron on the current Layer
+                for (j = 0; j < NeuronsPerLayer[l]; j++)
+                {
+                    sumdeltas = 0.0;
+                    //for every Neuron on the next higher Layer
+                    for (k = 0; k < NeuronsPerLayer[l + 1] - bias[l + 1]; k++)
+                    {
+                        //Calculate delta_k*w_jk to calculate the new deltas
+                        sumdeltas += deltas[l + 1][k] * Synweights[l][j][k];
+                    }
+                    //Calculate delta for current layer
+                    deltas[l][j] = DERIVATE(Neurons[l][j]) * sumdeltas;
+                } // end loop NeuronsPerLayer
+            }   // end loop NumberOfLayers
+
+            //For all Layers, upate Synapse weight
+            for (l = 0; l < NumberOfLayers - 1; l++)
+            {
+                for (j = 0; j < NeuronsPerLayer[l + 1] - bias[l + 1]; j++)
+                {
+                    for (i = 0; i < NeuronsPerLayer[l]; i++)
+                    {
+                        Synweights[l][i][j] += -learnRate * Neurons[l][i] * deltas[l + 1][j];
+                    }
+                }
+            }
+
+        } // end loop over events
+
+        //reduce learnrate to get better minimum
+        //check if we are in late epochs
+        if (nEp >= lateEpochs)
+        {
+            // In order to lower the learning rate even more,
+            learnRate *= (1.0 - sqrt(decayRate));
+        }
+        else
+        {
+            learnRate *= (1.0 - decayRate);
+        }
+
+    } // end loop over epochs
+
+
+    clReleaseContext(Context);
+    clReleaseKernel(kernel_tanh);
+    clReleaseKernel(kernel_linear);
+    clReleaseProgram(program);
+    clReleaseCommandQueue(CommandQueue);
     return;
 }
 /**
@@ -1055,7 +1718,8 @@ cl_context CTrainMLP_CreateContext()
     cl_device_id device;
     //get Platform and choose first one
     errNum = clGetPlatformIDs(1, &firstPlatformId, &numPlatforms);
-    if (errNum != CL_SUCCESS || numPlatforms <= 0) {
+    if (errNum != CL_SUCCESS || numPlatforms <= 0)
+    {
         cerr << "No OpenCL platforum found!" << endl;
         return NULL;
     }
@@ -1081,7 +1745,8 @@ cl_context CTrainMLP_CreateContext()
     if (errNum != CL_SUCCESS)
         printf("error getting device IDS\n");
     printf("  === %d OpenCL device(s) found on platform: 0\n\n", devices_n);
-    for (unsigned int d = 0; d < devices_n; d++) {
+    for (unsigned int d = 0; d < devices_n; d++)
+    {
         char buffer[10240];
         cl_uint buf_uint;
         cl_ulong buf_ulong;
@@ -1107,22 +1772,40 @@ cl_context CTrainMLP_CreateContext()
         (clGetDeviceInfo(device, CL_DEVICE_GLOBAL_MEM_SIZE,
                          sizeof(buf_ulong), &buf_ulong, NULL));
         printf("    DEVICE_GLOBAL_MEM_SIZE = %u\n\n", (unsigned int)buf_ulong);
+        (clGetDeviceInfo(device, CL_DEVICE_LOCAL_MEM_SIZE,
+                         sizeof(buf_ulong), &buf_ulong, NULL));
+        printf("    DEVICE_LOCAL_MEM_SIZE = %u\n\n", (unsigned int)buf_ulong);
+        (clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE,
+                         sizeof(buf_ulong), &buf_ulong, NULL));
+        printf("    DEVICE_MAX_WORK_GROUP_SIZE = %u\n\n", (unsigned int)buf_ulong);
+        (clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,
+                         sizeof(buf_ulong), &buf_ulong, NULL));
+        printf("    CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS = %u\n\n", (unsigned int)buf_ulong);
+        cl_ulong buff_size[(unsigned int)buf_ulong];
+        (clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_SIZES,
+                         sizeof(buf_ulong), buff_size, NULL));
+        printf("    CL_DEVICE_MAX_WORK_ITEM_SIZES = %u\n\n", (unsigned int)buff_size[1]);
+
     }
-    if (devices_n == 0) {
+    if (devices_n == 0)
+    {
         printf("error, on platform 0, there is no GPU device\n");
     }
 
-    cl_context_properties contextProperties[3] = {
+    cl_context_properties contextProperties[3] =
+    {
         CL_CONTEXT_PLATFORM,
         (cl_context_properties)firstPlatformId,
         0
     };
     context = clCreateContext(contextProperties, devices_n, &device, NULL, NULL, &errNum);
-    if (errNum != CL_SUCCESS) {
+    if (errNum != CL_SUCCESS)
+    {
         cout << "Unable to create GPU context, try CPU..." << endl;
         check_error(errNum);
         context = clCreateContextFromType(contextProperties, CL_DEVICE_TYPE_ALL, NULL, NULL, &errNum);
-        if (errNum != CL_SUCCESS) {
+        if (errNum != CL_SUCCESS)
+        {
             cerr << "Unable to create GPU or CPU context" << endl;
             check_error(errNum);
             return NULL;
@@ -1147,23 +1830,27 @@ cl_command_queue CTrainMLP_CreateCommandQueue(cl_context context, cl_device_id *
     size_t deviceBufferSize = -1;
 
     errNum = clGetContextInfo(context, CL_CONTEXT_DEVICES, 0, NULL, &deviceBufferSize);
-    if (errNum != CL_SUCCESS) {
+    if (errNum != CL_SUCCESS)
+    {
         cerr << "Failed to get size of device buffer";
         return NULL;
     }
-    if (deviceBufferSize <= 0) {
+    if (deviceBufferSize <= 0)
+    {
         cerr << "No devices available";
         return NULL;
     }
     //Allocate memory for device buffer
     devices = new cl_device_id[deviceBufferSize / sizeof(cl_device_id)];
     errNum = clGetContextInfo(context, CL_CONTEXT_DEVICES, deviceBufferSize, devices, NULL);
-    if (errNum != CL_SUCCESS) {
+    if (errNum != CL_SUCCESS)
+    {
         cerr << "Failed to get device ID";
         return NULL;
     }
     commandQueue = clCreateCommandQueue(context, devices[0], 0, NULL);
-    if (commandQueue == NULL) {
+    if (commandQueue == NULL)
+    {
         cerr << "Failed to create command queue";
         return NULL;
     }
@@ -1173,23 +1860,20 @@ cl_command_queue CTrainMLP_CreateCommandQueue(cl_context context, cl_device_id *
 }
 
 
-cl_program CTrainMLP_CreateProgram(cl_context context, cl_device_id device, const char *fileName, int nEvents, int NumberOfLayers, int nEpochs, int totalNeurons)
+cl_program CTrainMLP_CreateProgram(cl_context context, cl_device_id device, const char *fileName, string constants)
 {
     cl_int errNum;
     cl_program program;
 
     std::ifstream kernelFile(fileName, std::ios::in);
-    if (!kernelFile.is_open()) {
+    if (!kernelFile.is_open())
+    {
         std::cerr << "Failed to open file for reading: " << fileName << std::endl;
         return NULL;
     }
 
     std::ostringstream oss;
-    oss << "#pragma OPENCL EXTENSION cl_khr_fp64: enable"<<endl;
-    oss << "#define NEVENTS "<<nEvents<<endl;
-    oss << "#define NUMBEROFLAYERS "<<NumberOfLayers<<endl;
-    oss << "#define NEPOCHS "<< nEpochs<<endl;
-    oss << "#define TOTALNEURONS "<<totalNeurons<<endl;
+    oss << constants;
     oss << kernelFile.rdbuf();
 
     std::string srcStdStr = oss.str();
@@ -1197,13 +1881,15 @@ cl_program CTrainMLP_CreateProgram(cl_context context, cl_device_id device, cons
     program = clCreateProgramWithSource(context, 1,
                                         (const char **)&srcStr,
                                         NULL, NULL);
-    if (program == NULL) {
+    if (program == NULL)
+    {
         std::cerr << "Failed to create CL program from source." << std::endl;
         return NULL;
     }
 
     errNum = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-    if (errNum != CL_SUCCESS) {
+    if (errNum != CL_SUCCESS)
+    {
         // Determine the reason for the error
         char buildLog[16384];
         clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG,

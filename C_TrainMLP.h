@@ -1,5 +1,6 @@
 #ifndef ROOT_TMVA_C_TRAINMLP
 #define ROOT_TMVA_C_TRAINMLP
+#include <string>
 #ifdef BLAS
 #include <cblas.h>
 #endif
@@ -35,6 +36,11 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
                  int nVars, int nEpochs, int nEvents, int NumberOfLayers,
                  int *NeuronsPerLayer, int *bias, int events);
 
+void CTrainMLP_opencl(CEvents *ev, double learnRate, int nVars, int nEpochs,
+                 int nEvents, double *** Synweights,
+                 int *NeuronsPerLayer, int NumberOfLayers, int *bias,
+                 double decayRate, double max, double min);
+
 void check_error(int error);
 
 
@@ -42,7 +48,7 @@ cl_context CTrainMLP_CreateContext();
 
 cl_command_queue CTrainMLP_CreateCommandQueue(cl_context context, cl_device_id *device);
 
-cl_program CTrainMLP_CreateProgram(cl_context context, cl_device_id device, const char *fileName, int nEvents, int NumberOfLayers, int nEpochs, int totalNeurons);
+cl_program CTrainMLP_CreateProgram(cl_context context, cl_device_id device, const char *fileName, std::string constants);
 
 void Cleanup(cl_context context, cl_command_queue commandQueue,
              cl_program program, cl_kernel kernel, cl_mem memObjects[3]);
