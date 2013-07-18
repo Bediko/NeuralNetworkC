@@ -28,8 +28,9 @@ double tanhd(double value)
 
 //     neurons2[nEv][j] = FUNCTION(tmp);
 // }
-__kernel void CTrainMLP_forward_tanh(__global double *Neurons0, __global double *Neurons1, __global double *Neurons2, __global double *Synapses0,
-                                     __global double *Synapses1, __global int *NeuronsPerLayer, __global int *bias,
+__kernel void CTrainMLP_forward_tanh(__global double *Neurons0, __global double *Neurons1, __global double *Neurons2, __global double *Neurons3
+                                     , __global double *Synapses0, __global double *Synapses1, __global double *Synapses1,
+                                     __global int *NeuronsPerLayer, __global int *bias,
                                      int nEv_begin, int nEv_end, int nEvents)
 {
 
