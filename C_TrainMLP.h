@@ -36,10 +36,9 @@ void CTrainMLP_4(CEvents *ev,  double *** Synweights, double learnRate, double d
                  int nVars, int nEpochs, int nEvents, int NumberOfLayers,
                  int *NeuronsPerLayer, int *bias, int events);
 
-void CTrainMLP_opencl(CEvents *ev, double learnRate, int nVars, int nEpochs,
-                 int nEvents, double *** Synweights,
-                 int *NeuronsPerLayer, int NumberOfLayers, int *bias,
-                 double decayRate, double max, double min);
+void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, double decayRate,
+                 int nVars, int nEpochs, int nEvents, int NumberOfLayers,
+                 int *NeuronsPerLayer, int *bias, int events);
 
 void check_error(int error);
 

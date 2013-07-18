@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
     cout << "decay rate of the learning rate: " << decayrate << endl;
     loaddata >> type;
     cout << "learning type: " << type << endl;
-    if (type == 3) {
+    if (type == 3 || type == 4) {
         loaddata >> events;
         cout << "learning in batches of " << events << " events" << endl;
     }
@@ -226,16 +226,16 @@ int main(int argc, char *argv[])
 
     if (type == 4) {
         if (NumberOfLayers==4){
-        cout << "online with opencl " << endl;
-        CTrainMLP_opencl(training, learnrate, nVars, nEpochs,
-                  nEvents, Synweights, NeuronsPerLayer,
-                  NumberOfLayers, bias, decayrate, 1.0, 0.0);
+        cout << "batch with opencl " << endl;
+        CTrainMLP_opencl(training, Synweights, learnrate, decayrate,
+                        nVars, nEpochs, nEvents, NumberOfLayers,
+                        NeuronsPerLayer, bias, events);
         }
         else{
-            cout << "online without opencl " << endl;
-        CTrainMLP(training, learnrate, nVars, nEpochs,
-                  nEvents, Synweights, NeuronsPerLayer,
-                  NumberOfLayers, bias, decayrate, 1.0, 0.0);
+            cout << "batch without opencl " << endl;
+        CTrainMLP_m(training, Synweights, learnrate, decayrate,
+                        nVars, nEpochs, nEvents, NumberOfLayers,
+                        NeuronsPerLayer, bias, events);
         }
     }
 

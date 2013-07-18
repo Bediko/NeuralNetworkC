@@ -10,31 +10,61 @@ double tanhd(double value)
 }
 
 
-__kernel void CTrainMLP_forward_tanh(__global double *Neurons,__global double *weights,__global double *out, __global int *uplayer, __global int *downlayer){
-    int tx = get_local_id(0);
-    __local int ul;
-    __local int dl;
-    dl=downlayer[0];
-    ul=uplayer[0];
-    if(tx<ul){
-        out[tx] = 0.0;
-        for (int i=0;i<dl;i++)
-            out[tx]+=Neurons[i]*weights[tx*dl+i];
-       
-        out[tx]=tanh(out[tx]);
+// for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
+//     // do forward propagation
+//     for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++) {
+//         tmp = 0.0;
+//         for (i = 0; i < NeuronsPerLayer[0]; i++) {
+//             tmp += neurons0[nEv][i] * synapses0[i][j];
+//         }
+//         neurons1[nEv][j] = FUNCTION(tmp);
+//     }
+// }
+//          for (j = 0; j < NeuronsPerLayer[2] - bias[2]; j++) {
+//     tmp = 0.0;
+//     for (i = 0; i < NeuronsPerLayer[1]; i++) {
+//         tmp += synapses1[i][j] * neurons1[nEv][i];
+//     }
+
+//     neurons2[nEv][j] = FUNCTION(tmp);
+// }
+__kernel void CTrainMLP_forward_tanh(__global double *Neurons0, __global double *Neurons1, __global double *Neurons2, __global double *Synapses0,
+                                     __global double *Synapses1, __global int *NeuronsPerLayer, __global int *bias,
+                                     int nEv_begin, int nEv_end, int nEvents)
+{
+
+    int nEv = get_global_id(0);
+    int j = get_global_id(1);
+    double tmp;
+    if (nEv < nEv_end - nEv_begin && j < (NeuronsPerLayer[1] - bias[1])) {
+        tmp = 0.0;
+        for (int i = 0; i < NeuronsPerLayer[0]; i++) {
+            tmp += Neurons0[(nEv + nEv_begin) * NeuronsPerLayer[0] + i] * Synapses0[i * (NeuronsPerLayer[1] - bias[1]) + j];
+        }
+        Neurons1[(nEv + nEv_begin) * (NeuronsPerLayer[1]) + j] = tanh(tmp); //BIAS!!!!
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if (nEv < nEv_end - nEv_begin && j < (NeuronsPerLayer[2] - bias[2])) {
+        tmp = 0.0;
+        for (int i = 0; i < NeuronsPerLayer[1]; i++) {
+            tmp += Synapses1[i * (NeuronsPerLayer[2] - bias[2]) + j] * Neurons1[(nEv + nEv_begin) * NeuronsPerLayer[1] + i] ;
+        }
+        Neurons2[(nEv + nEv_begin) * (NeuronsPerLayer[2]) + j] = tanh(tmp); //BIAS!!!!
     }
     return;
 }
-__kernel void CTrainMLP_forward_linear(__global double *Neurons,__global double *weights,__global double *out, __global int *uplayer, __global int *downlayer){
-    int tx = get_local_id(0);
-    __local int ul;
-    __local int dl;
-    dl=downlayer[0];
-    ul=uplayer[0];
-    if(tx<ul){
-        out[tx] = 0.0;
-        for (int i=0;i<dl;i++)
-            out[tx]+=Neurons[i]*weights[tx*dl+i];
+__kernel void CTrainMLP_forward_linear(__global double *Neurons, __global double *weights, __global double *out, int uplayer, int downlayer,
+                                       int nEv_begin, int nEv_end, int nEvents)
+{
+    int nEv = get_global_id(0);
+    int j = get_global_id(1);
+    double tmp;
+    if (nEv < nEv_end - nEv_begin && j < uplayer) {
+        tmp = 0.0;
+        for (int i = 0; i < downlayer; i++) {
+            tmp += Neurons[(nEv + nEv_begin) * downlayer + i] * weights[i * uplayer + j];
+        }
+        out[(nEv + nEv_begin) * (uplayer) + j] = tanh(tmp);//KEIN BIAS
     }
     return;
 }
@@ -108,7 +138,7 @@ __kernel void CTrainMLP_forward_linear(__global double *Neurons,__global double 
                     desired[i] = 0.0;
                 }
             }
-            
+
             // aus eventValue bias-Knoten wieder raus und for-loop nur
             // bis < NeuronsPerLayer[0]-1
             for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++) {
