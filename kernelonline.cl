@@ -27,9 +27,10 @@ double tanhd(double value)
 //     }
 
 //     neurons2[nEv][j] = FUNCTION(tmp);
+
 // }
 __kernel void CTrainMLP_forward_tanh(__global double *Neurons0, __global double *Neurons1, __global double *Neurons2, __global double *Neurons3
-                                     , __global double *Synapses0, __global double *Synapses1, __global double *Synapses1,
+                                     , __global double *Synapses0, __global double *Synapses1, __global double *Synapses2,
                                      __global int *NeuronsPerLayer, __global int *bias,
                                      int nEv_begin, int nEv_end, int nEvents)
 {
@@ -44,13 +45,21 @@ __kernel void CTrainMLP_forward_tanh(__global double *Neurons0, __global double 
         }
         Neurons1[(nEv + nEv_begin) * (NeuronsPerLayer[1]) + j] = tanh(tmp); //BIAS!!!!
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE);
     if (nEv < nEv_end - nEv_begin && j < (NeuronsPerLayer[2] - bias[2])) {
         tmp = 0.0;
         for (int i = 0; i < NeuronsPerLayer[1]; i++) {
             tmp += Synapses1[i * (NeuronsPerLayer[2] - bias[2]) + j] * Neurons1[(nEv + nEv_begin) * NeuronsPerLayer[1] + i] ;
         }
         Neurons2[(nEv + nEv_begin) * (NeuronsPerLayer[2]) + j] = tanh(tmp); //BIAS!!!!
+    }
+    barrier(CLK_GLOBAL_MEM_FENCE);
+    if (nEv < nEv_end - nEv_begin && j < (NeuronsPerLayer[3] - bias[3])) {
+        tmp = 0.0;
+        for (int i = 0; i < NeuronsPerLayer[2]; i++) {
+            tmp += Synapses2[i * (NeuronsPerLayer[3] - bias[3]) + j] * Neurons2[(nEv + nEv_begin) * NeuronsPerLayer[2] + i] ;
+        }
+        Neurons3[(nEv + nEv_begin) * (NeuronsPerLayer[3]) + j] = tmp; //BIAS!!!!
     }
     return;
 }

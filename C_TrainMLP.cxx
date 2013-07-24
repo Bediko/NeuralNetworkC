@@ -1708,8 +1708,8 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
         int nEv_start = nEv = 0;
         int nEv_stop = events;
         for (int iparts = 0; iparts < parts; iparts++) {
-            //     //for one batch of events do forward propagation
-            //     //here: calculate the output as f_act(Input) not for the output layer
+            //for one batch of events do forward propagation
+            //here: calculate the output as f_act(Input) not for the output layer
             cl_mem memNeurons0, memNeurons1, memNeurons2, memNeurons3, memSynapses0, memSynapses1, memSynapses2, memNeuronsPerLayer, memBias;
             size_t localWorkSize[2];
             size_t globalWorkSize[2];
@@ -1815,7 +1815,7 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
                                          neurons2[0], 0, NULL, NULL);
             errNum = clEnqueueReadBuffer(CommandQueue,
                                          memNeurons3, CL_TRUE, 0, nEvents * NeuronsPerLayer[3] * sizeof(double),
-                                         neurons2[3], 0, NULL, NULL);
+                                         neurons3[0], 0, NULL, NULL);
             cout << "Read Buffer" << endl;
             if (errNum != CL_SUCCESS) {
                 cout << "Read buffer back" << endl;
@@ -1827,28 +1827,31 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
             clReleaseMemObject(memNeurons0);
             clReleaseMemObject(memNeurons1);
             clReleaseMemObject(memNeurons2);
+            clReleaseMemObject(memNeurons3);
             clReleaseMemObject(memSynapses0);
+            clReleaseMemObject(memSynapses1);
+            clReleaseMemObject(memSynapses2);
             clReleaseMemObject(memNeuronsPerLayer);
             clReleaseMemObject(memBias);
 
 
-            for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
-                for (i = 0; i < NeuronsPerLayer[1]; i++) {
-                    cout << neurons2[nEv][i] << endl; //ev->eventValues[nEv][i];
-                }
-                if (neurons2[nEv][NeuronsPerLayer[2] - 1] != 1)
-                    exit(0);
-            }
+            // for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
+            //     for (i = 0; i < NeuronsPerLayer[1]; i++) {
+            //         cout << neurons2[nEv][i] << endl; //ev->eventValues[nEv][i];
+            //     }
+            //     if (neurons2[nEv][NeuronsPerLayer[2] - 1] != 1)
+            //         exit(0);
+            // }
             for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
                 //     // do forward propagation
-                //     for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++) {
-                //         tmp = 0.0;
-                //         for (i = 0; i < NeuronsPerLayer[0]; i++) {
-                //             tmp += neurons0[nEv][i] * synapses0[i][j];
-                //         }
-                //         neurons1[nEv][j] = FUNCTION(tmp);
+                // for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++) {
+                //     tmp = 0.0;
+                //     for (i = 0; i < NeuronsPerLayer[0]; i++) {
+                //         tmp += neurons0[nEv][i] * synapses0[i][j];
                 //     }
+                //     neurons1[nEv][j] = FUNCTION(tmp);
                 // }
+
 
                 // for (j = 0; j < NeuronsPerLayer[2] - bias[2]; j++) {
                 //     tmp = 0.0;
@@ -1858,13 +1861,13 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
 
                 //     neurons2[nEv][j] = FUNCTION(tmp);
                 // }
-                for (j = 0; j < NeuronsPerLayer[3] - bias[3]; j++) {
-                    tmp = 0.0;
-                    for (i = 0; i < NeuronsPerLayer[2]; i++) {
-                        tmp += synapses2[i][j] * neurons2[nEv][i];
-                    }
-                    neurons3[nEv][j] = tmp;
-                }
+                // for (j = 0; j < NeuronsPerLayer[3] - bias[3]; j++) {
+                //     tmp = 0.0;
+                //     for (i = 0; i < NeuronsPerLayer[2]; i++) {
+                //         tmp += synapses2[i][j] * neurons2[nEv][i];
+                //     }
+                //     neurons3[nEv][j] = tmp;
+                // }
 
                 // now do backward propagation
                 // first compute all deltas
