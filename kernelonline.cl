@@ -2,7 +2,7 @@
 #define FUNCTION  tanh     //function
 #define DERIVATE tanhd     //derivate of function
 #pragma OPENCL EXTENSION cl_khr_fp64: enable
-#define BLOCK_SIZE 5
+#define BLOCK_SIZE 16
 
 
 double tanhd(double value)
@@ -34,7 +34,7 @@ __kernel void CTrainMLP_forward_tanh(__global double *Neurons0, __global double 
                                      , __global double *Synapses0, __global double *Synapses1, __global double *Synapses2,
                                      __global double *deltas1, __global double *deltas2, __global double *deltas3, __global double *desired, __global double *weights,
                                      __global int *NeuronsPerLayer, __global int *bias,
-                                     int nEv_begin, int nEv_end, int nEvents)
+                                     int nEv_begin, int nEv_end, int batchsize, double rate)
 {
 
     // int bEv = get_group_id(0);
@@ -44,7 +44,9 @@ __kernel void CTrainMLP_forward_tanh(__global double *Neurons0, __global double 
 
     int nEv = get_global_id(0);
     int j = get_global_id(1);
-
+    // NeuronsPerLayer[0]=get_num_groups(0);
+    // NeuronsPerLayer[1]=get_num_groups(1);
+    // return;
     // int nBegin=nEvents*BLOCK_SIZE*bj;
     // int nEnd=nBegin+nEvents-1;
     // int nStep= BLOCK_SIZE;
@@ -52,6 +54,9 @@ __kernel void CTrainMLP_forward_tanh(__global double *Neurons0, __global double 
     // int jStep=BLOCK_SIZE*NEURONS0;
 
     double tmp;
+    __local double syn0[NEURONS0][NEURONSB1];
+    __local double syn1[NEURONS1][NEURONSB2];
+    __local double syn2[NEURONS2][NEURONSB3];
     // for(int n=nBegin, j=jBegin; n<=nEnd; n+=nStep, j+=jStep){
     //     __local double Ns[BLOCK_SIZE][NEURONS0];
     //     __local double Ss[NEURONS0][NEURONSB0];
@@ -60,68 +65,163 @@ __kernel void CTrainMLP_forward_tanh(__global double *Neurons0, __global double 
 
     // }
     //forward
-    if (nEv < nEv_end - nEv_begin && j < (NeuronsPerLayer[1] - bias[1])) {
-        tmp = 0.0;
-        for (int i = 0; i < NeuronsPerLayer[0]; i++) {
-            tmp += Neurons0[(nEv + nEv_begin) * NeuronsPerLayer[0] + i] * Synapses0[i * (NeuronsPerLayer[1] - bias[1]) + j];
-        }
-        Neurons1[(nEv + nEv_begin) * (NeuronsPerLayer[1]) + j] = tanh(tmp); //BIAS!!!!
-    }
-    barrier(CLK_GLOBAL_MEM_FENCE);
-    if (nEv < nEv_end - nEv_begin && j < (NeuronsPerLayer[2] - bias[2])) {
-        tmp = 0.0;
-        for (int i = 0; i < NeuronsPerLayer[1]; i++) {
-            tmp += Synapses1[i * (NeuronsPerLayer[2] - bias[2]) + j] * Neurons1[(nEv + nEv_begin) * NeuronsPerLayer[1] + i] ;
-        }
-        Neurons2[(nEv + nEv_begin) * (NeuronsPerLayer[2]) + j] = tanh(tmp); //BIAS!!!!
-    }
-    barrier(CLK_GLOBAL_MEM_FENCE);
-    if (nEv < nEv_end - nEv_begin && j < (NeuronsPerLayer[3] - bias[3])) {
-        tmp = 0.0;
-        for (int i = 0; i < NeuronsPerLayer[2]; i++) {
-            tmp += Synapses2[i * (NeuronsPerLayer[3] - bias[3]) + j] * Neurons2[(nEv + nEv_begin) * NeuronsPerLayer[2] + i] ;
-        }
-        Neurons3[(nEv + nEv_begin) * (NeuronsPerLayer[3]) + j] = tmp; //BIAS!!!!
-    }
+     
+     __private int n = as_int(batchsize / BLOCK_SIZE);
+     //if (batchsize % BLOCK_SIZE != 0) n++;
 
-    //deltas
-    barrier(CLK_GLOBAL_MEM_FENCE);
-    if (nEv < nEv_end - nEv_begin && j < NeuronsPerLayer[3]) {
-        deltas3[(nEv + nEv_begin)*NeuronsPerLayer[3] + j] = Neurons3[(nEv + nEv_begin) * NeuronsPerLayer[3] + j] * weights[nEv + nEv_begin] - desired[(nEv + nEv_begin) * NeuronsPerLayer[3] + j];
-    }
-    barrier(CLK_GLOBAL_MEM_FENCE);
-    if (nEv < nEv_end - nEv_begin && j < NeuronsPerLayer[2]) {
-        tmp = 0.0;
-        for (int k = 0; k < NeuronsPerLayer[3] - bias[3]; k++) {
-            tmp += deltas3[(nEv + nEv_begin)*NeuronsPerLayer[3] + k] * Synapses2[j*(NeuronsPerLayer[3] - bias[3])+k];
+    for(int l=0;l<n;l++){
+        if (nEv< nEv_end - nEv_begin && j < NEURONSB1) {
+            tmp = 0.0;
+            for (int i = 0; i < NEURONS0; i++) {
+                tmp += Neurons0[(nEv + nEv_begin) * NEURONS0 + i] * Synapses0[i * NEURONSB1 + j];
+            }
+            Neurons1[(nEv + nEv_begin) * NEURONS1 + j] = tanh(tmp); //BIAS!!!!
         }
-        deltas2[(nEv + nEv_begin)*NeuronsPerLayer[2] +j] = tanhd(Neurons2[(nEv + nEv_begin) * NeuronsPerLayer[2] + j]) * tmp;
-    }
-    barrier(CLK_GLOBAL_MEM_FENCE);
-    if (nEv < nEv_end - nEv_begin && j < NeuronsPerLayer[1]) {
-        tmp = 0.0;
-        for (int k = 0; k < NeuronsPerLayer[2] - bias[2]; k++) {
-            tmp += deltas2[(nEv + nEv_begin)*NeuronsPerLayer[2] + k] * Synapses1[j*(NeuronsPerLayer[2] - bias[2])+k];
+    
+        barrier(CLK_GLOBAL_MEM_FENCE);
+
+        if (nEv < nEv_end - nEv_begin && j < NEURONSB2) {
+            tmp = 0.0;
+            for (int i = 0; i < NEURONS1; i++) {
+                tmp += Synapses1[i * NEURONSB2 + j] * Neurons1[(nEv + nEv_begin) * NEURONS1 + i] ;
+            }
+            Neurons2[(nEv + nEv_begin) * NEURONS2 + j] = tanh(tmp); //BIAS!!!!
         }
-        deltas1[(nEv + nEv_begin)*NeuronsPerLayer[1] +j] = tanhd(Neurons1[(nEv + nEv_begin) * NeuronsPerLayer[1] + j]) * tmp;
+
+        barrier(CLK_GLOBAL_MEM_FENCE);
+        if (nEv < nEv_end - nEv_begin && j < NEURONSB3) {
+            tmp = 0.0;
+            for (int i = 0; i < NEURONS2; i++) {
+                tmp += Synapses2[i * NEURONSB3 + j] * Neurons2[(nEv + nEv_begin) * NEURONS2 + i] ;
+            }
+            Neurons3[(nEv + nEv_begin) * NEURONS3 + j] = tmp; //KEIN BIAS!!!!
+        }
     }
+        //deltas
+        barrier(CLK_GLOBAL_MEM_FENCE);
+        if (nEv < nEv_end - nEv_begin && j < NEURONS3) {
+            deltas3[(nEv + nEv_begin)*NEURONS3 + j] = Neurons3[(nEv + nEv_begin) * NEURONS3 + j] * weights[nEv + nEv_begin] - desired[(nEv + nEv_begin) * NEURONS3 + j];
+        }
+
+        barrier(CLK_GLOBAL_MEM_FENCE);
+        if (nEv < nEv_end - nEv_begin && j < NEURONS2) {
+            tmp = 0.0;
+            for (int k = 0; k < NEURONSB3; k++) {
+                tmp += deltas3[(nEv + nEv_begin) * NEURONS3 + k] * Synapses2[j * NEURONSB3 + k];
+            }
+            deltas2[(nEv + nEv_begin)*NEURONS2 + j] = tanhd(Neurons2[(nEv + nEv_begin) * NEURONS2 + j]) * tmp;
+        }
+    
+        barrier(CLK_GLOBAL_MEM_FENCE);
+        if (nEv < nEv_end - nEv_begin && j < NEURONS1) {
+            tmp = 0.0;
+            for (int k = 0; k < NEURONSB2; k++) {
+                tmp += deltas2[(nEv + nEv_begin) * NEURONS2 + k] * Synapses1[j * NEURONSB2 + k];
+            }
+            deltas1[(nEv + nEv_begin)*NEURONS1 + j] = tanhd(Neurons1[(nEv + nEv_begin) * NEURONS1 + j]) * tmp;
+        }
+        //synapses
+        barrier(CLK_GLOBAL_MEM_FENCE);
+
+        int iEv;
+
+        // initialize local variables
+
+        if (nEv < nEv_end - nEv_begin) {
+            if (j < NEURONSB1) {
+                for (int i = 0; i < NEURONS0; i++) {
+                    syn0[i][j] = 0;
+                }
+            }
+            if (j < NEURONSB2) {
+                for (int i = 0; i < NEURONS1; i++) {
+                    syn1[i][j] = 0;
+                }
+            }
+            if (j < NEURONSB3) {
+                for (int i = 0; i < NEURONS2; i++) {
+                    syn2[i][j] = 0;
+                }
+            }
+        }
+        barrier(CLK_GLOBAL_MEM_FENCE);
+
+        // now a simple serial update in O(nEv), should be modified to a O(log(nEv))
+
+        for (iEv = 0; iEv <  nEv_end - nEv_begin; iEv++) {
+            if (nEv == iEv) {
+
+                if (j < NEURONSB1) {
+                    for (int i = 0; i < NEURONS0; i++) {
+                        syn0[i][j] += Neurons0[(nEv + nEv_begin) * NEURONS0 + i]
+                                      * deltas1[(nEv + nEv_begin) * NEURONS1 + j];
+                    }
+                }
+                if (j < NEURONSB2) {
+                    for (int i = 0; i < NEURONS1; i++) {
+                        syn1[i][j] += Neurons1[(nEv + nEv_begin) * NEURONS1 + i]
+                                      * deltas2[(nEv + nEv_begin) * NEURONS2 + j];
+                    }
+                }
+                if (j < NEURONSB3) {
+                    for (int i = 0; i < NEURONS2; i++) {
+                        syn2[i][j] += Neurons2[(nEv + nEv_begin) * NEURONS2 + i]
+                                      * deltas3[(nEv + nEv_begin) * NEURONS3 + j];
+                    }
+                }
+            }
+            barrier(CLK_GLOBAL_MEM_FENCE);
+        }
+        barrier(CLK_GLOBAL_MEM_FENCE);
+
+        // finally normalize new values
+
+        if (nEv == 0) {
+
+            if (j < NEURONSB1)  {
+                for (int i = 0; i < NEURONS0; i++) {
+                    Synapses0[i * NEURONSB1 + j] += syn0[i][j] * rate;
+                }
+            }
+            if (j < NEURONSB2) {
+                for (int i = 0; i < NEURONS1; i++) {
+                    Synapses1[i * NEURONSB2 + j] += syn1[i][j] * rate;
+                }
+            }
+            if (j < NEURONSB3) {
+                for (int i = 0; i < NEURONS2; i++) {
+                    Synapses2[i * NEURONSB3 + j] += syn2[i][j] * rate;
+                }
+            }
+        }
+    
+             // nEv_begin += BLOCK_SIZE;
+             // nEv_end  += BLOCK_SIZE;
+    //         if (nEv_end > nEvents) nEv_end = nEvents;
+     
+
+
+
     barrier(CLK_GLOBAL_MEM_FENCE);
+    // __local double syn0[NEURONS0][NEURONSB1];
+    // if (nEv < nEv_end - nEv_begin && j < NEURONSB1) {
+    //     for (int i = 0; i < NEURONS0; i++) {
+    //         syn0[i][j]= 0;
+    //     }
+    //     for (int i = 0; i < NEURONS0; i++) {
+    //         syn0[i][j]+= Neurons0[(nEv + nEv_begin) * NEURONS0 + i] * deltas1[(nEv + nEv_begin) * NEURONS1 + j];
+    //     }
+    //     barrier(CLK_LOCAL_MEM_FENCE);
+    //     if(get_global_id(1)==0 && get_global_id(0)==0){
+    //         for(int j=0;j<NEURONSB1;j++)
+    //             for(int i=0;i<NEURONS0;i++)
+    //                 Synapses0[i*NEURONSB1+j]+=syn0[i][j]*rate;
+    //     }
+    // }
+    // barrier(CLK_GLOBAL_MEM_FENCE);
+
     return;
 }
-__kernel void CTrainMLP_forward_linear(__global double *Neurons, __global double *weights, __global double *out, int uplayer, int downlayer,
-                                       int nEv_begin, int nEv_end, int nEvents)
-{
-    int nEv = get_global_id(0);
-    int j = get_global_id(1);
-    double tmp;
-    if (nEv < nEv_end - nEv_begin && j < uplayer) {
-        tmp = 0.0;
-        for (int i = 0; i < downlayer; i++) {
-            tmp += Neurons[(nEv + nEv_begin) * downlayer + i] * weights[i * uplayer + j];
-        }
-        out[(nEv + nEv_begin) * (uplayer) + j] = tanh(tmp);//KEIN BIAS
-    }
-    return;
-}
+
 
 

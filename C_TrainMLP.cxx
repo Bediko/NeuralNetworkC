@@ -1047,509 +1047,7 @@ void CTrainMLP_testing(CEvents *ev, int nEpochs, int nEvents, double *** Synweig
 
 
 
-/*void CTrainMLP_opencl(CEvents *ev, double learnRate, int nVars, int nEpochs,
-                      int nEvents, double *** Synweights,
-                      int *NeuronsPerLayer, int NumberOfLayers, int *bias,
-                      double decayRate, double max, double min)
-{
-    cl_int errNum;
-    int l, i, j, k;       //indices in for loops
-    int lateEpochs = (int)(nEpochs * 0.95) - 1; // taken from TMVA for better learning
 
-    double sumdeltas = 0.0; // Sum of delta_k*weight_jk used in back propagation
-
-    //Create Vector of desired Values for back propagation
-    double *desired;  // desired output value for each output neuron.
-    desired = (double *) malloc(NeuronsPerLayer[NumberOfLayers - 1] * sizeof(double));
-
-    double **deltas;  // deltas, used in back propagation, index1: Layer index2: Neuron
-    deltas = (double **) malloc(NumberOfLayers * sizeof(double *));
-    for (l = 0; l < NumberOfLayers; l++)
-    {
-        deltas[l] = (double *)malloc(NeuronsPerLayer[l] * sizeof(double));
-    }
-
-    cout << "function CTrainMLP" << endl;
-    double deltas1[NeuronsPerLayer[1]];
-    double deltas2[NeuronsPerLayer[2]];
-    double deltas3[NeuronsPerLayer[3]];
-
-    double neurons0[NeuronsPerLayer[0]];
-    double neurons1[NeuronsPerLayer[1]];
-    double neurons2[NeuronsPerLayer[2]];
-    double neurons3[NeuronsPerLayer[3]];
-
-    //transporniert
-    double synapses0[NeuronsPerLayer[1] - bias[1]][NeuronsPerLayer[0]];
-    double synapses1[NeuronsPerLayer[2] - bias[2]][NeuronsPerLayer[1]];
-    double synapses2[NeuronsPerLayer[3] - bias[3]][NeuronsPerLayer[2]];
-
-
-    // allocate neurons
-    double **Neurons;
-    int totalNeurons = NeuronsPerLayer[0];
-    for (l = 1; l < NumberOfLayers; l++)
-    {
-        totalNeurons += NeuronsPerLayer[l];
-    }
-    Neurons = (double **)malloc(NumberOfLayers * sizeof(double *));
-    Neurons[0] = (double *) malloc(totalNeurons * sizeof(double));
-    for (l = 1; l < NumberOfLayers; l++)
-    {
-        Neurons[l] = Neurons[l - 1] + NeuronsPerLayer[l - 1];
-    }
-
-    // set neurons of bias nodes
-    for (i = 0; i < NumberOfLayers - 1; i++)
-    {
-        if (bias[i] != 0)
-        {
-            Neurons[i][NeuronsPerLayer[i] - 1] = 1.0;
-        }
-    }
-
-    cl_context Context;
-    cl_device_id device;
-    cl_command_queue CommandQueue;
-    Context = CTrainMLP_CreateContext();
-    CommandQueue = CTrainMLP_CreateCommandQueue(Context, &device);
-    ostringstream ss;
-    int maxlayer = 0;
-    for ( i = 0; i < NumberOfLayers; i++)
-    {
-        if (maxlayer < NeuronsPerLayer[i])
-            maxlayer = NeuronsPerLayer[i];
-    }
-
-    ss << "#define LAYER " << maxlayer << endl;
-    ss << "#define BIAS " << maxlayer - 1 << endl;
-
-
-    cl_program program = CTrainMLP_CreateProgram(Context, device, "kernelonline.cl", ss.str());
-    cout << "create program" << endl;
-    cl_kernel kernel_tanh = clCreateKernel(program,
-                                           "CTrainMLP_forward_tanh", &errNum);
-    cout << "create kernel tanh" << endl;
-    if (errNum != CL_SUCCESS)
-    {
-        check_error(errNum);
-        exit(0);
-    }
-    cl_kernel kernel_linear = clCreateKernel(program,
-                              "CTrainMLP_forward_linear", &errNum);
-    cout << "create kernel linear" << endl;
-    if (errNum != CL_SUCCESS)
-    {
-        check_error(errNum);
-        exit(0);
-    }
-
-    // online learning
-    for (int nEp = 0; nEp < nEpochs; nEp++)       //for each epoch
-    {
-
-        for (int nEv = 0; nEv < nEvents; nEv++)     //for each event
-        {
-
-            //Initialization for each event
-            for (i = 0; i < NeuronsPerLayer[NumberOfLayers - 1]; i++)
-            {
-                //Set desired output to 1 if eventclass is the same
-                // as the index of the output neuron
-                if (ev->eventClass[nEv] == i)
-                {
-                    desired[i] = 1.0;
-                }
-                else
-                {
-                    desired[i] = 0.0;
-                }
-            }
-
-            // aus eventValue bias-Knoten wieder raus und for-loop nur
-            // bis < NeuronsPerLayer[0]-1
-            for (i = 0; i < NeuronsPerLayer[0] - bias[0]; i++)
-            {
-                //Use Eventvalues as output of the input layer to make
-                //the next step easier.
-                Neurons[0][i] = ev->eventValues[nEv][i];
-            }
-
-            //forward propagation
-
-            for (i = 0; i < NeuronsPerLayer[0]; i++)
-                for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++)
-                    synapses0[j][i] = Synweights[0][i][j];
-
-            for (i = 0; i < NeuronsPerLayer[1]; i++)
-                for (j = 0; j < NeuronsPerLayer[2] - bias[2]; j++)
-                    synapses1[j][i] = Synweights[1][i][j];
-
-            for (i = 0; i < NeuronsPerLayer[2]; i++)
-                for (j = 0; j < NeuronsPerLayer[3] - bias[3]; j++)
-                    synapses2[j][i] = Synweights[2][i][j];
-
-
-
-            for (i = 0; i < NeuronsPerLayer[0]; i++)
-                neurons0[i] = Neurons[0][i];
-            for (i = 0; i < NeuronsPerLayer[1]; i++)
-                neurons0[i] = Neurons[1][i];
-            for (i = 0; i < NeuronsPerLayer[2]; i++)
-                neurons0[i] = Neurons[2][i];
-
-
-
-
-                cl_mem memNeuronsin, memNeuronsout, memWeights, memUplayer,memDownlayer;
-                int uplayer;
-                int downlayer;
-                size_t localWorkSize[1] = {64};
-                size_t globalWorkSize[1] = {64};
-
-                memNeuronsout = clCreateBuffer(Context,
-                                               CL_MEM_READ_WRITE,
-                                               sizeof(double) * NeuronsPerLayer[1], neurons1, &errNum);
-                memNeuronsin = clCreateBuffer(Context,
-                                              CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                              sizeof(double) * NeuronsPerLayer[0], neurons0, &errNum);
-                memWeights = clCreateBuffer(Context,
-                                            CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                            sizeof(double) * NeuronsPerLayer[0] * (NeuronsPerLayer[1] - bias[1]), synapses0[0], &errNum);
-                uplayer = NeuronsPerLayer[1] - bias[1];
-                memUplayer = clCreateBuffer(Context,
-                                             CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                             sizeof(int) * 1, &uplayer, &errNum);
-                downlayer = NeuronsPerLayer[0];
-                memDownlayer = clCreateBuffer(Context,
-                                             CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                             sizeof(int) * 1, &downlayer, &errNum);
-                errNum = clSetKernelArg(kernel_tanh, 0,
-                                        sizeof(cl_mem), (void *)&memNeuronsin);
-                errNum |= clSetKernelArg(kernel_tanh, 1,
-                                         sizeof(cl_mem), (void *)&memWeights);
-                errNum |= clSetKernelArg(kernel_tanh, 2,
-                                         sizeof(cl_mem), (void *)&memNeuronsout);
-                errNum |= clSetKernelArg(kernel_tanh, 3,
-                                         sizeof(cl_mem), (void *)&memUplayer);
-                errNum |= clSetKernelArg(kernel_tanh, 4,
-                                         sizeof(cl_mem), (void *)&memDownlayer);
-                if(errNum!=CL_SUCCESS){
-                    cout<<"set kernel arguments"<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-                errNum = clEnqueueNDRangeKernel(CommandQueue,
-                                                kernel_tanh, 1, NULL, globalWorkSize,
-                                                localWorkSize, 0, NULL, NULL);
-                if(errNum!=CL_SUCCESS){
-                    cout<<"start kernel"<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-                errNum=clFinish(CommandQueue);
-                if(errNum!=CL_SUCCESS){
-                    cout<<"wait to calculate"<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-                errNum = clEnqueueReadBuffer(CommandQueue,
-                    memNeuronsout, CL_TRUE, 0, sizeof(double)*NeuronsPerLayer[1],
-                    neurons1, 0, NULL, NULL);
-                if(errNum!=CL_SUCCESS){
-                    cout<<"Read buffer back"<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-                errNum=clFinish(CommandQueue);
-                if(errNum!=CL_SUCCESS){
-                    cout<<"wait to calculate"<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-
-
-                clReleaseMemObject(memNeuronsin);
-                clReleaseMemObject(memNeuronsout);
-                clReleaseMemObject(memWeights);
-                clReleaseMemObject(memUplayer);
-                clReleaseMemObject(memDownlayer);
-
-
-
-                memNeuronsout = clCreateBuffer(Context,
-                                               CL_MEM_READ_WRITE,
-                                               sizeof(double) * NeuronsPerLayer[2], neurons2, &errNum);
-                memNeuronsin = clCreateBuffer(Context,
-                                              CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                              sizeof(double) * NeuronsPerLayer[1], neurons1, &errNum);
-                memWeights = clCreateBuffer(Context,
-                                            CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                            sizeof(double) * NeuronsPerLayer[1] * (NeuronsPerLayer[2] - bias[2]), synapses1[0], &errNum);
-                uplayer = NeuronsPerLayer[2] - bias[2];
-                memUplayer = clCreateBuffer(Context,
-                                             CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                             sizeof(int) * 1, &uplayer, &errNum);
-                downlayer = NeuronsPerLayer[1];
-                memDownlayer = clCreateBuffer(Context,
-                                             CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                             sizeof(int) * 1, &downlayer, &errNum);
-                errNum = clSetKernelArg(kernel_tanh, 0,
-                                        sizeof(cl_mem), (void *)&memNeuronsin);
-                errNum |= clSetKernelArg(kernel_tanh, 1,
-                                         sizeof(cl_mem), (void *)&memWeights);
-                errNum |= clSetKernelArg(kernel_tanh, 2,
-                                         sizeof(cl_mem), (void *)&memNeuronsout);
-                errNum |= clSetKernelArg(kernel_tanh, 3,
-                                         sizeof(cl_mem), (void *)&memUplayer);
-                errNum |= clSetKernelArg(kernel_tanh, 4,
-                                         sizeof(cl_mem), (void *)&memDownlayer);
-                if(errNum!=CL_SUCCESS){
-                    cout<<"set kernel arguments"<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-                errNum = clEnqueueNDRangeKernel(CommandQueue,
-                                                kernel_tanh, 1, NULL, globalWorkSize,
-                                                localWorkSize, 0, NULL, NULL);
-                if(errNum!=CL_SUCCESS){
-                    cout<<"start kernel"<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-                errNum=clFinish(CommandQueue);
-                if(errNum!=CL_SUCCESS){
-                    cout<<"wait to calculate"<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-                errNum = clEnqueueReadBuffer(CommandQueue,
-                    memNeuronsout, CL_TRUE, 0, sizeof(double)*NeuronsPerLayer[2],
-                    neurons2, 0, NULL, NULL);
-                if(errNum!=CL_SUCCESS){
-                    cout<<"Read buffer back"<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-                errNum=clFinish(CommandQueue);
-                if(errNum!=CL_SUCCESS){
-                    cout<<"wait to calculate"<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-
-                clReleaseMemObject(memNeuronsin);
-                clReleaseMemObject(memNeuronsout);
-                clReleaseMemObject(memWeights);
-                clReleaseMemObject(memUplayer);
-                clReleaseMemObject(memDownlayer);
-
-
-                memNeuronsout = clCreateBuffer(Context,
-                                               CL_MEM_READ_WRITE,
-                                               sizeof(double) * NeuronsPerLayer[3], neurons3, &errNum);
-                memNeuronsin = clCreateBuffer(Context,
-                                              CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                              sizeof(double) * NeuronsPerLayer[2], neurons2, &errNum);
-                memWeights = clCreateBuffer(Context,
-                                            CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                            sizeof(double) * NeuronsPerLayer[2] * (NeuronsPerLayer[3] - bias[3]), synapses2[0], &errNum);
-                uplayer = NeuronsPerLayer[3] - bias[3];
-                memUplayer = clCreateBuffer(Context,
-                                             CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                             sizeof(int) * 1, &uplayer, &errNum);
-                downlayer = NeuronsPerLayer[2];
-                memDownlayer = clCreateBuffer(Context,
-                                             CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                             sizeof(int) * 1, &downlayer, &errNum);
-                errNum = clSetKernelArg(kernel_linear, 0,
-                                        sizeof(cl_mem), (void *)&memNeuronsin);
-                errNum |= clSetKernelArg(kernel_linear, 1,
-                                         sizeof(cl_mem), (void *)&memWeights);
-                errNum |= clSetKernelArg(kernel_linear, 2,
-                                         sizeof(cl_mem), (void *)&memNeuronsout);
-                errNum |= clSetKernelArg(kernel_linear, 3,
-                                         sizeof(cl_mem), (void *)&memUplayer);
-                errNum |= clSetKernelArg(kernel_linear, 4,
-                                         sizeof(cl_mem), (void *)&memDownlayer);
-                if(errNum!=CL_SUCCESS){
-                    cout<<"set kernel arguments"<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-                errNum = clEnqueueNDRangeKernel(CommandQueue,
-                                                kernel_linear, 1, NULL, globalWorkSize,
-                                                localWorkSize, 0, NULL, NULL);
-                if(errNum!=CL_SUCCESS){
-                    cout<<"start kernel"<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-                errNum=clFinish(CommandQueue);
-                if(errNum!=CL_SUCCESS){
-
-                    cout<<"wait to calculate"<<endl;
-                    cout<<"Epoche"<<nEp<<endl;
-                    cout<<"Event"<<nEv<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-                errNum = clEnqueueReadBuffer(CommandQueue,
-                    memNeuronsout, CL_TRUE, 0, sizeof(double)*NeuronsPerLayer[3],
-                    neurons3, 0, NULL, NULL);
-                if(errNum!=CL_SUCCESS){
-                    cout<<"Read buffer back"<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-                errNum=clFinish(CommandQueue);
-                if(errNum!=CL_SUCCESS){
-                    cout<<"wait to calculate"<<endl;
-                    check_error(errNum);
-                    exit(0);
-                }
-
-
-                clReleaseMemObject(memNeuronsin);
-                clReleaseMemObject(memNeuronsout);
-                clReleaseMemObject(memWeights);
-                clReleaseMemObject(memUplayer);
-                clReleaseMemObject(memDownlayer);
-
-
-
-
-
-
-
-            //For each layer except Input and Output Layer.
-
-
-                // For each neuron on the next layer except bias node
-                for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++) { //LOOPSIZE
-                    // Calculate the neuron input
-                    Neurons[j] = 0.0;
-                    // For each input coming from the lower layer
-                    for (i = 0; i < NeuronsPerLayer[0]; i++) {
-                        // Calculate the neuron input
-                        Neurons[j] += Neurons[i] * Synweights[i][j];
-                    }
-                    // decide if current layer is Output
-                    if (l == NumberOfLayers - 1)
-                        continue;
-                    else
-                        //Calculate the output as f_act(Input)
-                        Neurons[l][j] = FUNCTION(Neurons[j]);
-                }
-
-
-
-            for (i = 0; i < NeuronsPerLayer[1] - bias[1]; i++)
-                Neurons[1][i] = neurons1[i];
-            for (i = 0; i < NeuronsPerLayer[2] - bias[2]; i++)
-                Neurons[2][i] = neurons2[i];
-            for (i = 0; i < NeuronsPerLayer[3] - bias[3]; i++)
-               Neurons[3][i] = neurons3[i];
-
-
-
-
-
-
-
-
-            for (l = 3; l < NumberOfLayers; l++)
-            {
-                // For each neuron on the next layer except bias node
-                for (j = 0; j < NeuronsPerLayer[l] - bias[l]; j++)
-                {
-                    // Calculate the neuron input
-                    Neurons[l][j] = 0.0;
-                    // For each input coming from the lower layer
-                    for (i = 0; i < NeuronsPerLayer[l - 1]; i++)
-                    {
-                        // Calculate the neuron input
-                        Neurons[l][j] += Neurons[l - 1][i] * Synweights[l - 1][i][j];
-                    }
-                    // decide if current layer is Output
-                    if (l == NumberOfLayers - 1)
-                        continue;
-                    else
-                        //Calculate the output as f_act(Input)
-                        Neurons[l][j] = FUNCTION(Neurons[l][j]);
-                        if(l==2)
-                            cout<<Neurons[l][j]<<endl;
-                }
-            }
-
-
-            // backward
-
-            // output layer
-            l = NumberOfLayers - 1;
-            for (j = 0; j < NeuronsPerLayer[l]; j++)
-            {
-                // Calculate delta. Since the Output is linear, there is no need
-                // to calculate the derivate of the activation function
-                // here the deltas have to be multiplied with the weight of the event
-                deltas[l][j] = Neurons[l][j] - desired[j];
-                deltas[l][j] *= ev->eventWeights[nEv];
-            }
-
-            //Beginning from last layer where the next layer is hiden layer
-            for (l = NumberOfLayers - 2; l >= 0; l--)
-            {
-                //for every Neuron on the current Layer
-                for (j = 0; j < NeuronsPerLayer[l]; j++)
-                {
-                    sumdeltas = 0.0;
-                    //for every Neuron on the next higher Layer
-                    for (k = 0; k < NeuronsPerLayer[l + 1] - bias[l + 1]; k++)
-                    {
-                        //Calculate delta_k*w_jk to calculate the new deltas
-                        sumdeltas += deltas[l + 1][k] * Synweights[l][j][k];
-                    }
-                    //Calculate delta for current layer
-                    deltas[l][j] = DERIVATE(Neurons[l][j]) * sumdeltas;
-                } // end loop NeuronsPerLayer
-            }   // end loop NumberOfLayers
-
-            //For all Layers, upate Synapse weight
-            for (l = 0; l < NumberOfLayers - 1; l++)
-            {
-                for (j = 0; j < NeuronsPerLayer[l + 1] - bias[l + 1]; j++)
-                {
-                    for (i = 0; i < NeuronsPerLayer[l]; i++)
-                    {
-                        Synweights[l][i][j] += -learnRate * Neurons[l][i] * deltas[l + 1][j];
-                    }
-                }
-            }
-
-        } // end loop over events
-
-        //reduce learnrate to get better minimum
-        //check if we are in late epochs
-        if (nEp >= lateEpochs)
-        {
-            // In order to lower the learning rate even more,
-            learnRate *= (1.0 - sqrt(decayRate));
-        }
-        else
-        {
-            learnRate *= (1.0 - decayRate);
-        }
-
-    } // end loop over epochs
-
-
-    clReleaseContext(Context);
-    clReleaseKernel(kernel_tanh);
-    clReleaseKernel(kernel_linear);
-    clReleaseProgram(program);
-    clReleaseCommandQueue(CommandQueue);
-    return;
-}*/
 
 void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, double decayRate,
                       int nVars, int nEpochs, int nEvents, int NumberOfLayers,
@@ -1689,13 +1187,6 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
         check_error(errNum);
         exit(0);
     }
-    cl_kernel kernel_linear = clCreateKernel(program,
-                              "CTrainMLP_forward_linear", &errNum);
-    cout << "create kernel linear" << endl;
-    if (errNum != CL_SUCCESS) {
-        check_error(errNum);
-        exit(0);
-    }
 
 
 
@@ -1703,31 +1194,16 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
     // number of loops for mixed batch - online learning
     int parts = nEvents / events;
     if (nEvents % events != 0) parts++;
-
-
-    for (int nEp = 0; nEp < nEpochs; nEp++) { //for each epoch
-
-        //-------------------------------------------------------------------
-        // do mixed learning, i.e. learn in iparts batches of size events
-        int nEv_start = nEv = 0;
-        int nEv_stop = events;
-        for (int iparts = 0; iparts < parts; iparts++) {
-            double rate = -learnRate / (double)events;
-            //for one batch of events do forward propagation
-            //here: calculate the output as f_act(Input) not for the output layer
-            cl_mem memNeurons0, memNeurons1, memNeurons2, memNeurons3, memSynapses0, memSynapses1, memSynapses2, memNeuronsPerLayer, memBias;
+    cl_mem memNeurons0, memNeurons1, memNeurons2, memNeurons3, memSynapses0, memSynapses1, memSynapses2, memNeuronsPerLayer, memBias;
             cl_mem memdeltas1, memdeltas2, memdeltas3, memdesired, memweights;
             size_t localWorkSize[2];
             size_t globalWorkSize[2];
-            localWorkSize[0] = 32;
-            localWorkSize[1] = 32;
-            globalWorkSize[0] = 1024;
-            globalWorkSize[1] = 1024;
-            // cout << "part: " << iparts << endl;
-            // cout << "start: " << nEv_start;
-            // cout << "stop: " << nEv_stop;
-            // cout << "stop-start: " << nEv_stop - nEv_start << endl;
-            memNeurons0 = clCreateBuffer(Context,
+            localWorkSize[0] = 16;
+            localWorkSize[1] = 64;
+            globalWorkSize[0] = 16;
+            globalWorkSize[1] = 64;
+
+        memNeurons0 = clCreateBuffer(Context,
                                          CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                                          nEvents * NeuronsPerLayer[0]  * sizeof(double), neurons0[0], &errNum);
 
@@ -1762,13 +1238,13 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
             memdeltas3 = clCreateBuffer(Context,
                                         CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                                         sizeof(double) * nEvents * NeuronsPerLayer[3], deltas3[0], &errNum);
-            memweights= clCreateBuffer(Context,
-                CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                sizeof(double)*nEvents,weights,&errNum);
+            memweights = clCreateBuffer(Context,
+                                        CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                        sizeof(double) * nEvents, weights, &errNum);
 
             memdesired = clCreateBuffer(Context,
-                CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                sizeof(double)*nEvents*NeuronsPerLayer[3],desired[0],&errNum);
+                                        CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                                        sizeof(double) * nEvents * NeuronsPerLayer[3], desired[0], &errNum);
 
             memNeuronsPerLayer = clCreateBuffer(Context,
                                                 CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
@@ -1800,19 +1276,41 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
                                      sizeof(cl_mem), (void *)&memdeltas3);
             errNum |= clSetKernelArg(kernel_tanh, 10,
                                      sizeof(cl_mem), (void *)&memdesired);
-             errNum |= clSetKernelArg(kernel_tanh, 11,
+            errNum |= clSetKernelArg(kernel_tanh, 11,
                                      sizeof(cl_mem), (void *)&memweights);
 
             errNum |= clSetKernelArg(kernel_tanh, 12,
                                      sizeof(cl_mem), (void *)&memNeuronsPerLayer);
             errNum |= clSetKernelArg(kernel_tanh, 13,
                                      sizeof(cl_mem), (void *)&memBias);
+            errNum |= clSetKernelArg(kernel_tanh, 16,
+                                     sizeof(int), &events);
+
+    for (int nEp = 0; nEp < nEpochs; nEp++) { //for each epoch
+
+        //-------------------------------------------------------------------
+        // do mixed learning, i.e. learn in iparts batches of size events
+        int nEv_start = nEv = 0;
+        int nEv_stop = events;
+        for (int iparts = 0; iparts < parts; iparts++) {
+            double rate = -learnRate / (double)events;
+            //for one batch of events do forward propagation
+            //here: calculate the output as f_act(Input) not for the output layer
+            
+            // cout << "part: " << iparts << endl;
+            // cout << "start: " << nEv_start;
+            // cout << "stop: " << nEv_stop;
+            // cout << "stop-start: " << nEv_stop - nEv_start << endl;
+            
+
+
+            
             errNum |= clSetKernelArg(kernel_tanh, 14,
                                      sizeof(int), &nEv_start);
             errNum |= clSetKernelArg(kernel_tanh, 15,
                                      sizeof(int), &nEv_stop);
-            errNum |= clSetKernelArg(kernel_tanh, 16,
-                                     sizeof(int), &nEvents);
+            errNum |= clSetKernelArg(kernel_tanh, 17,
+                                      sizeof(double), (void *)&rate);
             if (errNum != CL_SUCCESS) {
                 cout << "set kernel arguments" << endl;
                 check_error(errNum);
@@ -1834,138 +1332,16 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
                 exit(0);
             }
 
+            
+            
 
-            errNum = clEnqueueReadBuffer(CommandQueue,
-                                         memNeurons1, CL_TRUE, 0, nEvents * NeuronsPerLayer[1] * sizeof(double),
-                                         neurons1[0], 0, NULL, NULL);
-            errNum = clEnqueueReadBuffer(CommandQueue,
-                                         memNeurons2, CL_TRUE, 0, nEvents * NeuronsPerLayer[2] * sizeof(double),
-                                         neurons2[0], 0, NULL, NULL);
-            errNum = clEnqueueReadBuffer(CommandQueue,
-                                         memNeurons3, CL_TRUE, 0, nEvents * NeuronsPerLayer[3] * sizeof(double),
-                                         neurons3[0], 0, NULL, NULL);
-             errNum = clEnqueueReadBuffer(CommandQueue,
-                                         memdeltas3, CL_TRUE, 0, nEvents * NeuronsPerLayer[3] * sizeof(double),
-                                         deltas3[0], 0, NULL, NULL);
-             errNum = clEnqueueReadBuffer(CommandQueue,
-                                         memdeltas2, CL_TRUE, 0, nEvents * NeuronsPerLayer[2] * sizeof(double),
-                                         deltas2[0], 0, NULL, NULL);
-             errNum = clEnqueueReadBuffer(CommandQueue,
-                                         memdeltas1, CL_TRUE, 0, nEvents * NeuronsPerLayer[1] * sizeof(double),
-                                         deltas1[0], 0, NULL, NULL);
+            //cout<<NeuronsPerLayer[0]<<endl;
+            //cout<<NeuronsPerLayer[1]<<endl;
             //cout << "Read Buffer" << endl;
             if (errNum != CL_SUCCESS) {
                 cout << "Read buffer back" << endl;
                 check_error(errNum);
                 exit(0);
-            }
-
-
-            clReleaseMemObject(memNeurons0);
-            clReleaseMemObject(memNeurons1);
-            clReleaseMemObject(memNeurons2);
-            clReleaseMemObject(memNeurons3);
-            clReleaseMemObject(memSynapses0);
-            clReleaseMemObject(memSynapses1);
-            clReleaseMemObject(memSynapses2);
-            clReleaseMemObject(memdeltas1);
-            clReleaseMemObject(memdeltas2);
-            clReleaseMemObject(memdeltas3);
-            clReleaseMemObject(memdesired);
-            clReleaseMemObject(memweights);
-            clReleaseMemObject(memNeuronsPerLayer);
-            clReleaseMemObject(memBias);
-
-
-            // for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
-            //     for (i = 0; i < NeuronsPerLayer[1]; i++) {
-            //         cout << neurons2[nEv][i] << endl; //ev->eventValues[nEv][i];
-            //     }
-            //     if (neurons2[nEv][NeuronsPerLayer[2] - 1] != 1)
-            //         exit(0);
-            // }
-            // for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
-            //         // do forward propagation
-            //     for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++) {
-            //         tmp = 0.0;
-            //         for (i = 0; i < NeuronsPerLayer[0]; i++) {
-            //             tmp += neurons0[nEv][i] * synapses0[i][j];
-            //         }
-            //         neurons1[nEv][j] = FUNCTION(tmp);
-            //     }
-
-
-            //     for (j = 0; j < NeuronsPerLayer[2] - bias[2]; j++) {
-            //         tmp = 0.0;
-            //         for (i = 0; i < NeuronsPerLayer[1]; i++) {
-            //             tmp += synapses1[i][j] * neurons1[nEv][i];
-            //         }
-
-            //         neurons2[nEv][j] = FUNCTION(tmp);
-            //     }
-            //     for (j = 0; j < NeuronsPerLayer[3] - bias[3]; j++) {
-            //         tmp = 0.0;
-            //         for (i = 0; i < NeuronsPerLayer[2]; i++) {
-            //             tmp += synapses2[i][j] * neurons2[nEv][i];
-            //         }
-            //         neurons3[nEv][j] = tmp;
-            //     }
-
-            //     // now do backward propagation
-            //     // first compute all deltas
-
-            //     for (j = 0; j < lastNeurons; j++) {
-            //         deltas3[nEv][j] = neurons3[nEv][j] * weights[nEv] - desired[nEv][j];
-            //     }
-            //     for (j = 0; j < NeuronsPerLayer[2]; j++) {
-            //         sumdeltas = 0.0;
-            //         for (k = 0; k < NeuronsPerLayer[3] - bias[3]; k++) {
-            //             sumdeltas += deltas3[nEv][k] * synapses2[j][k];
-            //         }
-            //         deltas2[nEv][j] = DERIVATE(neurons2[nEv][j]) * sumdeltas;
-            //     }
-            //     for (j = 0; j < NeuronsPerLayer[1]; j++) {
-            //         sumdeltas = 0.0;
-            //         for (k = 0; k < NeuronsPerLayer[2] - bias[2]; k++) {
-            //             sumdeltas += synapses1[j][k] * deltas2[nEv][k];
-            //         }
-            //         deltas1[nEv][j] = DERIVATE(neurons1[nEv][j]) * sumdeltas;
-            //     }
-            // } // end loop over one batch
-
-            // secondly update weights
-
-            //For all Layers, upate Synapse weight
-
-
-
-            for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
-
-                for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++) {
-                    for (i = 0; i < NeuronsPerLayer[0]; i++) {
-                        synapses0[i][j] += neurons0[nEv][i] * deltas1[nEv][j] * rate;
-                    }
-                }
-            }
-
-            for (j = 0; j < NeuronsPerLayer[2] - bias[2]; j++) {
-                for (i = 0; i < NeuronsPerLayer[1]; i++) {
-                    sumdeltas = 0.0;
-                    for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
-                        sumdeltas += neurons1[nEv][i] * deltas2[nEv][j];
-                    }
-                    synapses1[i][j] += rate * sumdeltas;
-                }
-            }
-
-            for (j = 0; j < NeuronsPerLayer[3] - bias[3]; j++) {
-                for (i = 0; i < NeuronsPerLayer[2]; i++) {
-                    sumdeltas = 0.0;
-                    for (nEv = nEv_start; nEv < nEv_stop; nEv++) {
-                        sumdeltas += neurons2[nEv][i] * deltas3[nEv][j];
-                    }
-                    synapses2[i][j] += rate * sumdeltas;
-                }
             }
 
             nEv_start += events;
@@ -1984,7 +1360,15 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
         }
 
     } // end loop over epochs
-
+            errNum = clEnqueueReadBuffer(CommandQueue,
+                                         memSynapses0, CL_TRUE, 0, sizeof(double) * NeuronsPerLayer[0] * (NeuronsPerLayer[1] - bias[1]),
+                                         synapses0[0], 0, NULL, NULL);
+            errNum = clEnqueueReadBuffer(CommandQueue,
+                                         memSynapses1, CL_TRUE, 0, sizeof(double) * NeuronsPerLayer[1] * (NeuronsPerLayer[2] - bias[2]),
+                                         synapses1[0], 0, NULL, NULL);
+            errNum = clEnqueueReadBuffer(CommandQueue,
+                                         memSynapses2, CL_TRUE, 0, sizeof(double) * NeuronsPerLayer[2] * (NeuronsPerLayer[3] - bias[3]),
+                                         synapses2[0], 0, NULL, NULL);
     // restore Synweights
     for (i = 0; i < NeuronsPerLayer[0]; i++)
         for (j = 0; j < NeuronsPerLayer[1] - bias[1]; j++)
@@ -1999,9 +1383,22 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
             Synweights[2][i][j] = synapses2[i][j];
 
 
+     clReleaseMemObject(memNeurons0);
+            clReleaseMemObject(memNeurons1);
+            clReleaseMemObject(memNeurons2);
+            clReleaseMemObject(memNeurons3);
+            clReleaseMemObject(memSynapses0);
+            clReleaseMemObject(memSynapses1);
+            clReleaseMemObject(memSynapses2);
+            clReleaseMemObject(memdeltas1);
+            clReleaseMemObject(memdeltas2);
+            clReleaseMemObject(memdeltas3);
+            clReleaseMemObject(memdesired);
+            clReleaseMemObject(memweights);
+            clReleaseMemObject(memNeuronsPerLayer);
+            clReleaseMemObject(memBias);
     clReleaseContext(Context);
     clReleaseKernel(kernel_tanh);
-    clReleaseKernel(kernel_linear);
     clReleaseProgram(program);
     clReleaseCommandQueue(CommandQueue);
     return;
