@@ -1198,9 +1198,9 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
             cl_mem memdeltas1, memdeltas2, memdeltas3, memdesired, memweights;
             size_t localWorkSize[2];
             size_t globalWorkSize[2];
-            localWorkSize[0] = 16;
+            localWorkSize[0] = 8;
             localWorkSize[1] = 64;
-            globalWorkSize[0] = 16;
+            globalWorkSize[0] = 8;
             globalWorkSize[1] = 64;
 
         memNeurons0 = clCreateBuffer(Context,
@@ -1283,8 +1283,8 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
                                      sizeof(cl_mem), (void *)&memNeuronsPerLayer);
             errNum |= clSetKernelArg(kernel_tanh, 13,
                                      sizeof(cl_mem), (void *)&memBias);
-            errNum |= clSetKernelArg(kernel_tanh, 16,
-                                     sizeof(int), &events);
+            // errNum |= clSetKernelArg(kernel_tanh, 16,
+            //                          sizeof(int), &events);
 
     for (int nEp = 0; nEp < nEpochs; nEp++) { //for each epoch
 
@@ -1294,6 +1294,8 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
         int nEv_stop = events;
         for (int iparts = 0; iparts < parts; iparts++) {
             double rate = -learnRate / (double)events;
+            cout<<nEv_stop-nEv_start<<endl;
+            cout<<events<<endl;
             //for one batch of events do forward propagation
             //here: calculate the output as f_act(Input) not for the output layer
             
@@ -1309,7 +1311,7 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
                                      sizeof(int), &nEv_start);
             errNum |= clSetKernelArg(kernel_tanh, 15,
                                      sizeof(int), &nEv_stop);
-            errNum |= clSetKernelArg(kernel_tanh, 17,
+            errNum |= clSetKernelArg(kernel_tanh, 16,
                                       sizeof(double), (void *)&rate);
             if (errNum != CL_SUCCESS) {
                 cout << "set kernel arguments" << endl;
