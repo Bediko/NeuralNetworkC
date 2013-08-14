@@ -1165,7 +1165,12 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
 
 
 
-
+    size_t localWorkSize[2];
+            size_t globalWorkSize[2];
+            localWorkSize[0] = 8;
+            localWorkSize[1] = 64;
+            globalWorkSize[0] = 8;
+            globalWorkSize[1] = 64;
     int errNum;
     cl_context Context;
     cl_device_id device;
@@ -1177,6 +1182,7 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
         ss << "#define NEURONS" << i << " " << NeuronsPerLayer[i] << endl;
         ss << "#define NEURONSB" << i << " " << NeuronsPerLayer[i] - bias[i] << endl;
     }
+        ss<< "#define BLOCK_SIZE "<<localWorkSize[0]<<endl;
 
     cl_program program = CTrainMLP_CreateProgram(Context, device, "kernelonline.cl", ss.str());
     cout << "create program" << endl;
@@ -1194,29 +1200,13 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
     // number of loops for mixed batch - online learning
     int parts = nEvents / events;
     if (nEvents % events != 0) parts++;
-    cl_mem memNeurons0, memNeurons1, memNeurons2, memNeurons3, memSynapses0, memSynapses1, memSynapses2, memNeuronsPerLayer, memBias;
-            cl_mem memdeltas1, memdeltas2, memdeltas3, memdesired, memweights;
-            size_t localWorkSize[2];
-            size_t globalWorkSize[2];
-            localWorkSize[0] = 8;
-            localWorkSize[1] = 64;
-            globalWorkSize[0] = 8;
-            globalWorkSize[1] = 64;
+    cl_mem memNeurons0, memSynapses0, memSynapses1, memSynapses2;
+            cl_mem memdesired, memweights;
+
 
         memNeurons0 = clCreateBuffer(Context,
                                          CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                                          nEvents * NeuronsPerLayer[0]  * sizeof(double), neurons0[0], &errNum);
-
-            memNeurons1 = clCreateBuffer(Context,
-                                         CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                         nEvents * NeuronsPerLayer[1]  * sizeof(double), neurons1[0], &errNum);
-
-            memNeurons2 = clCreateBuffer(Context,
-                                         CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                         nEvents * NeuronsPerLayer[2]  * sizeof(double), neurons2[0], &errNum);
-            memNeurons3 = clCreateBuffer(Context,
-                                         CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                         nEvents * NeuronsPerLayer[3]  * sizeof(double), neurons3[0], &errNum);
 
 
             memSynapses0 = clCreateBuffer(Context,
@@ -1229,15 +1219,6 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
             memSynapses2 = clCreateBuffer(Context,
                                           CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                                           sizeof(double) * NeuronsPerLayer[2] * (NeuronsPerLayer[3] - bias[3]), synapses2[0], &errNum);
-            memdeltas1 = clCreateBuffer(Context,
-                                        CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                        sizeof(double) * nEvents * NeuronsPerLayer[1], deltas1[0], &errNum);
-            memdeltas2 = clCreateBuffer(Context,
-                                        CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                        sizeof(double) * nEvents * NeuronsPerLayer[2], deltas2[0], &errNum);
-            memdeltas3 = clCreateBuffer(Context,
-                                        CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                        sizeof(double) * nEvents * NeuronsPerLayer[3], deltas3[0], &errNum);
             memweights = clCreateBuffer(Context,
                                         CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                                         sizeof(double) * nEvents, weights, &errNum);
@@ -1245,44 +1226,18 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
             memdesired = clCreateBuffer(Context,
                                         CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                                         sizeof(double) * nEvents * NeuronsPerLayer[3], desired[0], &errNum);
-
-            memNeuronsPerLayer = clCreateBuffer(Context,
-                                                CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                                sizeof(int) * NumberOfLayers, NeuronsPerLayer, &errNum);
-
-            memBias = clCreateBuffer(Context,
-                                     CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                                     sizeof(int) * NumberOfLayers, bias, &errNum);
-
             errNum = clSetKernelArg(kernel_tanh, 0,
                                     sizeof(cl_mem), (void *)&memNeurons0);
             errNum |= clSetKernelArg(kernel_tanh, 1,
-                                     sizeof(cl_mem), (void *)&memNeurons1);
-            errNum |= clSetKernelArg(kernel_tanh, 2,
-                                     sizeof(cl_mem), (void *)&memNeurons2);
-            errNum |= clSetKernelArg(kernel_tanh, 3,
-                                     sizeof(cl_mem), (void *)&memNeurons3);
-            errNum |= clSetKernelArg(kernel_tanh, 4,
                                      sizeof(cl_mem), (void *)&memSynapses0);
-            errNum |= clSetKernelArg(kernel_tanh, 5,
+            errNum |= clSetKernelArg(kernel_tanh, 2,
                                      sizeof(cl_mem), (void *)&memSynapses1);
-            errNum |= clSetKernelArg(kernel_tanh, 6,
+            errNum |= clSetKernelArg(kernel_tanh, 3,
                                      sizeof(cl_mem), (void *)&memSynapses2);
-            errNum |= clSetKernelArg(kernel_tanh, 7,
-                                     sizeof(cl_mem), (void *)&memdeltas1);
-            errNum |= clSetKernelArg(kernel_tanh, 8,
-                                     sizeof(cl_mem), (void *)&memdeltas2);
-            errNum |= clSetKernelArg(kernel_tanh, 9,
-                                     sizeof(cl_mem), (void *)&memdeltas3);
-            errNum |= clSetKernelArg(kernel_tanh, 10,
+            errNum |= clSetKernelArg(kernel_tanh, 4,
                                      sizeof(cl_mem), (void *)&memdesired);
-            errNum |= clSetKernelArg(kernel_tanh, 11,
+            errNum |= clSetKernelArg(kernel_tanh, 5,
                                      sizeof(cl_mem), (void *)&memweights);
-
-            errNum |= clSetKernelArg(kernel_tanh, 12,
-                                     sizeof(cl_mem), (void *)&memNeuronsPerLayer);
-            errNum |= clSetKernelArg(kernel_tanh, 13,
-                                     sizeof(cl_mem), (void *)&memBias);
             // errNum |= clSetKernelArg(kernel_tanh, 16,
             //                          sizeof(int), &events);
 
@@ -1294,8 +1249,7 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
         int nEv_stop = events;
         for (int iparts = 0; iparts < parts; iparts++) {
             double rate = -learnRate / (double)events;
-            cout<<nEv_stop-nEv_start<<endl;
-            cout<<events<<endl;
+
             //for one batch of events do forward propagation
             //here: calculate the output as f_act(Input) not for the output layer
             
@@ -1307,16 +1261,15 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
 
 
             
-            errNum |= clSetKernelArg(kernel_tanh, 14,
+            errNum |= clSetKernelArg(kernel_tanh, 6,
                                      sizeof(int), &nEv_start);
-            errNum |= clSetKernelArg(kernel_tanh, 15,
+            errNum |= clSetKernelArg(kernel_tanh, 7,
                                      sizeof(int), &nEv_stop);
-            errNum |= clSetKernelArg(kernel_tanh, 16,
+            errNum |= clSetKernelArg(kernel_tanh, 8,
                                       sizeof(double), (void *)&rate);
             if (errNum != CL_SUCCESS) {
                 cout << "set kernel arguments" << endl;
                 check_error(errNum);
-                exit(0);
             }
             errNum = clEnqueueNDRangeKernel(CommandQueue,
                                             kernel_tanh, 2, NULL, globalWorkSize,
@@ -1386,19 +1339,11 @@ void CTrainMLP_opencl(CEvents *ev,  double *** Synweights, double learnRate, dou
 
 
      clReleaseMemObject(memNeurons0);
-            clReleaseMemObject(memNeurons1);
-            clReleaseMemObject(memNeurons2);
-            clReleaseMemObject(memNeurons3);
             clReleaseMemObject(memSynapses0);
             clReleaseMemObject(memSynapses1);
             clReleaseMemObject(memSynapses2);
-            clReleaseMemObject(memdeltas1);
-            clReleaseMemObject(memdeltas2);
-            clReleaseMemObject(memdeltas3);
             clReleaseMemObject(memdesired);
             clReleaseMemObject(memweights);
-            clReleaseMemObject(memNeuronsPerLayer);
-            clReleaseMemObject(memBias);
     clReleaseContext(Context);
     clReleaseKernel(kernel_tanh);
     clReleaseProgram(program);
